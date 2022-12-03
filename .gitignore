@@ -1,0 +1,9 @@
+#directory
+/build
+/ana
+/plot
+/Decode_config
+/bin/*
+/run
+#files
+*.condor
