@@ -3,7 +3,8 @@
 /ana
 /plot
 /Decode_config
-/bin/*
+/bin
 /run
 #files
 *.condor
+*log*

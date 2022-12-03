@@ -78,9 +78,46 @@ int Config::Run()
 
 void Config::Print()
 {
-	YAML::Node example_config = YAML::LoadFile("/mnt2/SJTU/wangzhen/hbuana/config/config.yaml");
 	ofstream fout("./config.yaml");
-	fout << example_config;
+	fout << "#Printing version information"<<endl;
+	fout << "hbuana:"<<endl;
+	fout << "\t version: 1.0"<<endl;
+	fout << "\t github: git@github.com:wangz1996/cepc_hbuana.git"<<endl;
+	fout << "\n"<<endl;
+	fout << "#Dat file to ROOT Decoder"<<endl;
+	fout << "DAT-ROOT:"<<endl;
+	fout << "\t on-off: False"<<endl;
+	fout << "\t file-list: list_dat.txt"<<endl;
+	fout << "\t output-dir: ./"<<endl;
+	fout << "\n"<<endl;
+	fout << "#Pedestal analyse manager"<<endl;
+	fout << "Pedestal: "<<endl;
+	fout << "\t on-off: False"<<endl;
+	fout << "\t #If work in cosmic mode (hittag==0)"<<endl;
+	fout << "\t Cosmic:"<<endl;
+	fout << "\t \t on-off: False"<<endl;
+	fout << "\t \t file-list: list.txt"<<endl;
+	fout << "\t \t output-file: cosmic_pedestal.root"<<endl;
+	fout << "\t \t usemt: False"<<endl;
+	fout << "\t #If work in DAC mode (hittag==1 and skip the calibration channel)"<<endl;
+	fout << "\t DAC:"<<endl;
+	fout << "\t \t on-off: False"<<endl;
+	fout << "\t \t file-list: list.txt"<<endl;
+	fout << "\t \t output-file: dac_pedestal.root"<<endl;
+	fout << "\n"<<endl;
+	fout << "#DAC Calibration Manager"<<endl;
+	fout << "Calibration:"<<endl;
+	fout << "\t on-off: False"<<endl;
+	fout << "\t #If work in cosmic mode"<<endl;
+	fout << "\t Cosmic:"<<endl;
+	fout << "\t \t on-off: False"<<endl;
+	fout << "\t \t file-list: list.txt"<<endl;
+	fout << "\t \t ped-file: pedestal_cosmic.root"<<endl;
+	fout << "\t #If work in DAC mode"<<endl;
+	fout << "\t DAC:"<<endl;
+	fout << "\t \t on-off: False"<<endl;
+	fout << "\t \t file-list: list.txt"<<endl;
+	fout << "\t \t ped-file: pedestal_dac.root"<<endl;
 	fout.close();
 }
 
