@@ -164,7 +164,7 @@ int PedestalManager::AnaPedestal(const std::string &_list,const int &sel_hittag)
 		{
 			int begin = ith*nfile_pert;
 			int end = begin + nfile_pert - 1;
-			end = end>list.size()? list.size() : end;
+			end = end>list.size()-1? list.size()-1 : end;
 			vector<string> tmp_list;
 			for(int i=begin;i<=end;i++)tmp_list.push_back(list.at(i));
 			listth.push_back(tmp_list);
