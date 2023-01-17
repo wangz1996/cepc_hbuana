@@ -14,26 +14,32 @@ project ( hbuana VERSION 1.0.0 LANGUAGES C CXX )
 set(CMAKE_BUILD_TYPE Debug)
 
 #External packages
-find_package( ROOT COMPONENTS Matrix Hist RIO MathCore Physics)
+find_package( ROOT COMPONENTS Matrix Hist RIO MathCore Physics ROOTDataFrame TMVA ROOTVecOps)
 find_package( yaml-cpp REQUIRED)
 
 #set run time output directory as bin
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
 #Add include directories
-include_directories(src)
-include_directories(include)
+include_directories(./src)
+include_directories(./include)
+include_directories(./pid)
 include_directories(${YAML_CPP_INCLUDE_DIR})
 #message("hey ${YAML_CPP_INCLUDE_DIR}")
 include(${ROOT_USE_FILE})
+
+add_subdirectory(pid)
 
 #Add static librarys
 add_library(HBase STATIC src/HBase.cxx) 
 
 #add executable
 add_executable(hbuana src/main.cxx src/DatManager.cxx src/PedestalManager.cxx src/DacManager.cxx src/config.cxx)
+add_executable(jetclus src/jet.cxx src/JetClusterManager.cxx)
 #link libraries
 target_link_libraries(hbuana ${ROOT_LIBRARIES} yaml-cpp HBase)
+target_link_libraries(jetclus ${ROOT_LIBRARIES})
+
 
 #Add scripts to make setup.sh to include hbuana into environment
 execute_process(COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/config/setup.sh ${PROJECT_BINARY_DIR})

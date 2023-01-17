@@ -5,6 +5,7 @@
 /Decode_config
 /bin
 /run
+/backup
 #files
 *.condor
 *log*

@@ -108,18 +108,15 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 				}
 				int layer = cellid/1e5;
 				int chip = (cellid%100000)/10000;
+				//double tmp_lowgain=charges->at(i);
+				//double tmp_highgain=times->at(i);
+				//Anshun wants to see the pure signal so just keep the pedestal for each channel
 				double tmp_lowgain=charges->at(i)-hped_low->GetBinContent(layer*9+chip+1,channel+1);
 				double tmp_highgain=times->at(i)-hped_high->GetBinContent(layer*9+chip+1,channel+1);
 				if(tmp_highgain<time_min)time_min=tmp_highgain;
 				if(tmp_highgain>time_max)time_max=tmp_highgain;
 				if(tmp_lowgain<charge_min)charge_min=tmp_lowgain;
 				if(tmp_lowgain>charge_max)charge_max=tmp_lowgain;
-				//if(!map_cellid_calib[cellid])
-				//{
-				//	TString tmp_name="hdac_"+TString(to_string(cellid));
-				//	//if(mode=="dac")map_cellid_calib[cellid]=new TH2D(tmp_name,tmp_name,200,-200,300,200,-100,3400); // input high gain
-				//	//else if(mode=="cosmic")map_cellid_calib[cellid]=new TH2D(tmp_name,tmp_name,200,-100,3000,200,-200,3200); // input high gain
-				//}
 				map_cellid_calib[cellid]->Fill(tmp_lowgain,tmp_highgain); // Fill low gain high gain with pedestal subtracted
 			}
 
