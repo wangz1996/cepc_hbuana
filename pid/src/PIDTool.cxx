@@ -10,6 +10,7 @@ PIDTool::~PIDTool()
 
 int PIDTool::GenNtuple(const string &file,const string &tree)
 {
+	ROOT::EnableImplicitMT();
 	ROOT::RDataFrame *dm=new ROOT::RDataFrame(tree,file);
 	string outname = file;
     outname = outname.substr(outname.find_last_of('/')+1);
@@ -21,44 +22,40 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         double xwidth = h1->GetRMS();
         delete h1;
         return xwidth;
-    },{"Hit_X"})
+    },{"hcal_cellx"})
     .Define("ywidth",[](vector<double> Hit_Y){
         TH1D *h1=new TH1D("h1","test",100,-400,400);
         for(auto i:Hit_Y)h1->Fill(i);
         double ywidth = h1->GetRMS();
         delete h1;
         return ywidth;
-    },{"Hit_Y"})
+    },{"hcal_celly"})
     .Define("zwidth",[](vector<double> Hit_Z){
         TH1D *h1=new TH1D("h1","test",100,-0,1200);
         for(auto i:Hit_Z)h1->Fill(i);
         double zwidth = h1->GetRMS();
         delete h1;
         return zwidth;
-    },{"Hit_Z"})
+    },{"hcal_cellz"})
     .Define("Edep",[](vector<double> Hit_Energy){
         double sum=0.;
         for(auto i:Hit_Energy)sum+=i;
         return sum;
-    },{"Hit_Energy"})
-	.Define("layer_hitcell",[](vector<int> Hit_PSDID)
+    },{"hcal_celle"})
+	.Define("layer_hitcell",[](vector<int> hcal_cellid,vector<double> hcal_celle)
 	{
 		vector<int> layer_HitCell(40);
-		unordered_map<int,int> map_cell_hit; // PSDID, Count
-		for(auto i:Hit_PSDID)
+		for(int i=0;i<hcal_cellid.size();i++)
 		{
-			int layer = i/10000;
-			if(map_cell_hit.count(i)==0)
-			{
-				layer_HitCell.at(layer)++;
-			}
-			map_cell_hit[i]++;
+			int layer = hcal_cellid.at(i)/10000;
+			if(hcal_celle.at(i)<0.1)continue;
+			layer_HitCell.at(layer)++;
 		}
 		return layer_HitCell;
-	},{"Hit_PSDID"})
+	},{"hcal_cellid","hcal_celle"})
 	.Define("shower_start",[](vector<int> layer_hitcell)
 	{
-		int shower_start=38;
+		int shower_start=42;
 		for(int i=0;i<layer_hitcell.size()-3;i++)
 		{
 			if(layer_hitcell.at(i)>=4 && layer_hitcell.at(i+1)>=4 && layer_hitcell.at(i+2)>=4 && layer_hitcell.at(i+3)>=4)
@@ -89,7 +86,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		vector<TH1D*>().swap(h);
 		return layer_xwidth;
-	},{"Hit_X","Hit_PSDID"})
+	},{"hcal_cellx","hcal_cellid"})
 	.Define("layer_ywidth",[](vector<double> Hit_Y,vector<int> Hit_PSDID)
 	{
 		vector<double> layer_ywidth(40);
@@ -110,7 +107,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		vector<TH1D*>().swap(h);
 		return layer_ywidth;
-	},{"Hit_Y","Hit_PSDID"})
+	},{"hcal_celly","hcal_cellid"})
 	.Define("shower_layer",[](vector<int> Hit_PSDID,vector<double> layer_xwidth,vector<double> layer_ywidth)
 	{
 		double shower_layer=0;
@@ -122,7 +119,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 			}
 		}
 		return shower_layer;
-	},{"Hit_PSDID","layer_xwidth","layer_ywidth"})
+	},{"hcal_cellid","layer_xwidth","layer_ywidth"})
 	.Define("hit_layer",[](vector<int> Hit_PSDID)
 	{
 		double hit_layer=0;
@@ -137,8 +134,82 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 			if(map_layer_hit.count(i)>0)hit_layer++;
 		}
 		return hit_layer;
-	},{"Hit_PSDID"})
+	},{"hcal_cellid"})
 	.Define("shower_layer_ratio","shower_layer/hit_layer")
+	.Define("shower_density",[](vector<int> hcal_cellid,vector<double> hcal_celle)
+	{
+		double shower_density=0.;
+		unordered_map<int,int> map_hcal_cellid;
+		for(auto i:hcal_cellid)
+		{
+			map_hcal_cellid[i] = 1;
+		}
+		for(int i=0;i<hcal_cellid.size();i++)
+		{
+			if(hcal_celle.at(i)<0.1)continue;
+			int layer = hcal_cellid.at(i)/10000;
+			int x = (hcal_cellid.at(i)%10000)/100;
+			int y = (hcal_cellid.at(i)%100);
+			for(int _l=layer-1;_l<=layer+1;_l++)
+			{
+				for(int _x=x-1;_x<=x+1;_x++)
+				{
+					for(int _y=y-1;_y<=y+1;_y++)
+					{
+						int _id=_l*10000+_x*100+_y;
+						shower_density += map_hcal_cellid[_id];
+					}
+				}
+			}
+		}
+		shower_density/=hcal_cellid.size();
+		return shower_density;
+	},{"hcal_cellid","hcal_celle"})
+	.Define("layer_rms",[](vector<double> hcal_cellx,vector<double> hcal_celly,vector<int> hcal_cellid,vector<double> hcal_celle)->vector<double>
+	{
+		vector<double> layer_rms(40);
+		vector<TH2D*> hvec;
+		for(int i=0;i<40;i++)hvec.emplace_back(new TH2D("h"+TString(to_string(i))+"_rms","Layer RMS",100,-400,400,100,-400,400));
+		for(int i=0;i<hcal_cellx.size();i++)
+		{
+			int layer = hcal_cellid.at(i)/10000;
+			hvec.at(layer)->Fill(hcal_cellx.at(i),hcal_celly.at(i),hcal_celle.at(i));
+		}
+		for(int i=0;i<hvec.size();i++)
+		{
+			if(hvec.at(i)->GetEntries()<4)
+			{
+				layer_rms.at(i) = 0.;
+			}
+			else
+			{
+				layer_rms.at(i) = hvec.at(i)->GetRMS();
+			}
+			delete hvec.at(i);
+		}
+		vector<TH2D*>().swap(hvec);
+		return layer_rms;
+	},{"hcal_cellx","hcal_celly","hcal_cellid","hcal_celle"})
+	.Define("shower_length",[](vector<double> layer_rms,int shower_start)
+	{
+		double shower_length=0.;
+		double startz = 300. + 1.5+shower_start*25.;
+		int max_layer =0;
+		double max_rms=0.;
+		for(int i=0;i<layer_rms.size();i++)
+		{
+			if(layer_rms.at(i)>max_rms)
+			{
+				max_layer=i;
+				max_rms=layer_rms.at(i);
+			}
+		}
+		//auto maxPosition = max_element(layer_rms.begin()+shower_start, layer_rms.end());
+		//int max_layer= maxPosition - layer_rms.begin();
+		shower_length = (max_layer-shower_start)*25.;
+		if(shower_start==42)shower_length=0.;
+		return shower_length;
+	},{"layer_rms","shower_start"})
     .Snapshot(tree,outname);
 	delete dm;
 	return 1;
