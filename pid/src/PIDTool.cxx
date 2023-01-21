@@ -10,7 +10,8 @@ PIDTool::~PIDTool()
 
 int PIDTool::GenNtuple(const string &file,const string &tree)
 {
-	ROOT::EnableImplicitMT();
+	//ROOT::EnableImplicitMT();
+	ROOT::DisableImplicitMT();
 	ROOT::RDataFrame *dm=new ROOT::RDataFrame(tree,file);
 	string outname = file;
     outname = outname.substr(outname.find_last_of('/')+1);
@@ -210,6 +211,47 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		if(shower_start==42)shower_length=0.;
 		return shower_length;
 	},{"layer_rms","shower_start"})
+	.Define("hclx",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	{
+		vector<double> hclx;
+		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		hclx = httool->GetHclX();
+		delete httool;
+		return hclx;
+	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
+	.Define("hcly",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	{
+		vector<double> hcly;
+		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		hcly = httool->GetHclY();
+		delete httool;
+		return hcly;
+	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
+	.Define("hclz",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	{
+		vector<double> hclz;
+		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		hclz = httool->GetHclZ();
+		delete httool;
+		return hclz;
+	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
+	.Define("hcle",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	{
+		vector<double> hcle;
+		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		hcle = httool->GetHclE();
+		delete httool;
+		return hcle;
+	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
+	.Define("ntrack",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	{
+		int ntrack=0;
+		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		ntrack = httool->GetNtrack();
+		delete httool;
+		return ntrack;
+	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
+	//.Range(1)
     .Snapshot(tree,outname);
 	delete dm;
 	return 1;

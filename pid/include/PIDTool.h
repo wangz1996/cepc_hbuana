@@ -19,6 +19,7 @@
 #include "TMVA/DataLoader.h"
 #include "TMVA/Tools.h"
 #include "TMVA/TMVAGui.h"
+#include "HTTool.h"
 using namespace std;
 class PIDTool
 {
@@ -49,5 +50,6 @@ private:
 	map<TString,char> var;
 	map<TString,TString> sig;
 	map<TString,TString> bkg;
+	
 };
 #endif

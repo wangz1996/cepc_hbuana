@@ -35,6 +35,8 @@ int main(int argc,char* argv[])
 		pt->AddVar("Edep",'D');
 		pt->AddVar("shower_start",'I');
 		pt->AddVar("shower_layer_ratio",'D');
+		pt->AddVar("shower_density",'D');
+		pt->AddVar("shower_length",'D');
 		pt->AddSig("pid_pion.root","T");
 		pt->AddBkg("pid_e.root","T");
 		pt->AddBkg("pid_muon.root","T");
