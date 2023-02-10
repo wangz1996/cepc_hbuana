@@ -20,6 +20,10 @@
 #include "TMVA/Tools.h"
 #include "TMVA/TMVAGui.h"
 #include "HTTool.h"
+#include "TMVA/TMVAGui.h"
+#include "TMVA/Reader.h"
+#include "TMVA/MethodCuts.h"
+#include "TMVA/TMVAMultiClassGui.h"
 using namespace std;
 class PIDTool
 {
@@ -27,29 +31,24 @@ public:
 	PIDTool();
 	~PIDTool();
 	int GenNtuple(const string &file,const string &tree);
-	void AddSig(const string &file,const string &tree)
+	void AddSignal(const string &file,const string &tree,const string &particle_name)
 	{
-		sig.insert(pair<TString,TString>(TString(file),TString(tree)));
-	}
-	void AddBkg(const string &file,const string &tree)
-	{
-		bkg.insert(pair<TString,TString>(TString(file),TString(tree)));
+		signal.insert(pair<pair<TString,TString>,TString>(pair<TString,TString>(TString(file),TString(tree)),TString(particle_name)));
 	}
 	void AddVar(const string &v,const char &type)
 	{
 		var.insert(pair<TString,char>(TString(v),type));
 	}
-	int TrainBDT(const string &bdtname);
+	int TrainBDT();
+	int BDTNtuple(const string &fname,const string &tname);
 	void Clear()
 	{
 		var.clear();
-		sig.clear();
-		bkg.clear();
+		signal.clear();
 	}
 private:
 	map<TString,char> var;
-	map<TString,TString> sig;
-	map<TString,TString> bkg;
+	map<pair<TString,TString>,TString> signal;
 	
 };
 #endif

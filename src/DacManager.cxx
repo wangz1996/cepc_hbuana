@@ -23,7 +23,7 @@ DacManager::DacManager(const TString &outname)
 	hfit=new TH2D("hfit","Fitting Goodness",360,0,360,36,0,36);
 	hhighgain_platform=new TH2D("hhighgain_platform","High Gain Platform",360,0,360,36,0,36);
 	f1 = new TF1("f1","[0]*x+[1]"); // Function used to fit the slope (High_gain / Low_gain)
-	f2 = new TF1("f2","[0]"); // Function used to fetch the high gain platform
+	f2 = new TF1("f2","[0]*x+[1]"); // Function used to fetch the high gain platform
 	//cout<<"Initialization done"<<endl;
 }
 
@@ -56,8 +56,8 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 			{
 				int tmp_cellid=l*1e5+c*1e4+chn;
 				TString tmp_name="hdac_"+TString(to_string(tmp_cellid).c_str());
-				if(mode=="dac")map_cellid_calib[tmp_cellid]=new TH2D(tmp_name,tmp_name,200,-200,300,200,-100,3400); // input high gain
-				else if(mode=="cosmic")map_cellid_calib[tmp_cellid]=new TH2D(tmp_name,tmp_name,200,-100,3000,200,-200,3200); // input high gain
+				if(mode=="dac")map_cellid_calib[tmp_cellid]=new TH2D(tmp_name,tmp_name,200,-100,3400,200,-200,300); // 
+				else if(mode=="cosmic")map_cellid_calib[tmp_cellid]=new TH2D(tmp_name,tmp_name,200,-200,3500,200,-100,500); //
 			}
 		}
 	}
@@ -117,7 +117,7 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 				if(tmp_highgain>time_max)time_max=tmp_highgain;
 				if(tmp_lowgain<charge_min)charge_min=tmp_lowgain;
 				if(tmp_lowgain>charge_max)charge_max=tmp_lowgain;
-				map_cellid_calib[cellid]->Fill(tmp_lowgain,tmp_highgain); // Fill low gain high gain with pedestal subtracted
+				map_cellid_calib[cellid]->Fill(tmp_highgain,tmp_lowgain); // Fill low gain high gain with pedestal subtracted
 			}
 
 		}
@@ -138,56 +138,77 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 		int channel = cellid%100;
 		int chip = (cellid%100000)/10000;
 		double fit_goodness = 10000.; // Initialize a large fit value
-		bool fit_goodvalue_found=false,found_start=false;
-		double fitstart=-100.,fitend=3000.;
 		double highgain_platform = 10000.;
 		double slope = -10.; // Slope after fitting
+		double xfit=0;
 		if(mode == "dac")
 		{
-			fitstart = -200.;
-			fitend = 300.;
 		}
-		i.second->Fit("f1","q","",fitstart,fitend);
-		double fg0 = f1->GetChisquare()/f1->GetNDF(); //Fit goodness at largest range
-		for(int xmax=fitend;xmax>=0;xmax-=50) // TODO
+		for(int ii=i.second->GetNbinsX();ii>0;ii--)
 		{
-			i.second->Fit("f1","q","",fitstart,xmax);
-			fit_goodness = f1->GetChisquare()/f1->GetNDF();
-			slope = f1->GetParameter(0); // Slope after fitting
-			//cout<<fitstart<<" "<<xmax<<" "<<fit_goodness<<endl;
-			if((fit_goodness<400. || fit_goodness < (0.5 * fg0)) && slope > 10. && slope < 50.)
+			for(int jj=i.second->GetNbinsY();jj>0;jj--)
 			{
-				fit_goodvalue_found = true;
-				fitend = xmax;
-				break;
-			}
-		}
-		if(fit_goodvalue_found)
-		{
-			cout<<"fit good value found: "<<cellid<<" "<<fitstart<<" "<<fitend<<" "<<fit_goodness<<" "<<fg0<<endl;
-		}
-		else
-		{
-			i.second->Fit("f1","q","",fitstart,fitend);
-			fit_goodness = f1->GetChisquare()/f1->GetNDF();
-		}
-		// Find the maximum to be the platform
-		bool found_max=false; 
-		for(int jbin=i.second->GetNbinsY();jbin>0;jbin--)
-		{
-			for(int ibin=0;ibin<i.second->GetNbinsX();ibin++)
-			{
-				if(i.second->GetBinContent(ibin,jbin)>0.1)
+				if(i.second->GetBinContent(ii,jj)>0 && i.second->GetYaxis()->GetBinCenter(jj)>100)
 				{
-					found_max=true;
-					i.second->Fit("f2","q+","",i.second->GetXaxis()->GetBinCenter(ibin)-10,i.second->GetXaxis()->GetBinCenter(ibin)+10);
-					highgain_platform = f2->GetParameter(0);
+					xfit = i.second->GetXaxis()->GetBinCenter(ii);
+					break;
 				}
-				if(found_max)break;
 			}
-			if(found_max)break;
+			if(xfit>100)break;
 		}
-		slope = f1->GetParameter(0); // Slope after fitting
+		i.second->Fit(f1,"q+","",xfit-100,xfit);
+		i.second->Fit(f2,"q+","",-100,xfit-500);
+		double k1=f1->GetParameter(0);
+		double k2=f2->GetParameter(0);
+		double b1=f1->GetParameter(1);
+		double b2=f2->GetParameter(1);
+		highgain_platform = (b2-b1)/(k1-k2);
+		slope = f2->GetParameter(0);
+		fit_goodness = f2->GetChisquare()/f2->GetNDF();
+		//if(i.second->GetEntries()>10)
+		//{
+		//	i.second->Fit("f1","q","",fitstart,fitend);
+		//	double fg0 = f1->GetChisquare()/f1->GetNDF(); //Fit goodness at largest range
+		//	for(int xmax=fitend;xmax>=0;xmax-=20) // TODO
+		//	{
+		//		i.second->Fit("f1","q","",fitstart,xmax);
+		//		fit_goodness = f1->GetChisquare()/f1->GetNDF();
+		//		slope = f1->GetParameter(0); // Slope after fitting
+		//		//cout<<fitstart<<" "<<xmax<<" "<<fit_goodness<<endl;
+		//		if((fit_goodness<400. || fit_goodness < (0.2 * fg0)) && slope > 10. && slope < 50.)
+		//		{
+		//			fit_goodvalue_found = true;
+		//			fitend = xmax;
+		//			break;
+		//		}
+		//	}
+		//	if(fit_goodvalue_found)
+		//	{
+		//		cout<<"fit good value found: "<<cellid<<" "<<fitstart<<" "<<fitend<<" "<<fit_goodness<<" "<<fg0<<endl;
+		//	}
+		//	else
+		//	{
+		//		i.second->Fit("f1","q","",fitstart,fitend);
+		//		fit_goodness = f1->GetChisquare()/f1->GetNDF();
+		//	}
+		//	// Find the maximum to be the platform
+		//	bool found_max=false; 
+		//	for(int jbin=i.second->GetNbinsY();jbin>0;jbin--)
+		//	{
+		//		for(int ibin=0;ibin<i.second->GetNbinsX();ibin++)
+		//		{
+		//			if(i.second->GetBinContent(ibin,jbin)>0.1)
+		//			{
+		//				found_max=true;
+		//				i.second->Fit("f2","q+","",i.second->GetXaxis()->GetBinCenter(ibin)-10,i.second->GetXaxis()->GetBinCenter(ibin)+10);
+		//				highgain_platform = f2->GetParameter(0);
+		//			}
+		//			if(found_max)break;
+		//		}
+		//		if(found_max)break;
+		//	}
+		//	slope = f1->GetParameter(0); // Slope after fitting
+		//}
 		//
 		//2D for each layer following
 		map_layer_dacslope[layer]->Fill(chip,channel,slope);

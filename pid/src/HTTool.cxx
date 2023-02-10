@@ -25,7 +25,7 @@ HTTool::HTTool(const vector<int> &id,const vector<double> &x,const vector<double
 		vector<vector<HTTool::hit*>> tmpcol = this->MergeAdjacent(layer_hits[i]);
 		for(auto t:tmpcol)
 		{
-			if(t.size()>=10)continue;
+			if(t.size()>=5)continue;
 			else
 			{
 				HTTool::hcl *tmp_hcl = new HTTool::hcl();
@@ -90,7 +90,7 @@ HTTool::HTTool(const vector<int> &id,const vector<double> &x,const vector<double
 	{
 		for(int j=0;j<hht->GetNbinsY();j++)
 		{
-			if(hht->GetBinContent(i+1,j+1)>4)
+			if(hht->GetBinContent(i+1,j+1)>10)
 			{
 				if(!ftrack(pair<int,int>(i,j)))
 				{
@@ -103,8 +103,8 @@ HTTool::HTTool(const vector<int> &id,const vector<double> &x,const vector<double
 	//TCanvas *c1=new TCanvas("c1","test",1024,768);
 	//c1->cd();
 	//gStyle->SetOptStat("");
-	//hht->Draw("colztext");
-	//c1->SaveAs("test.png");
+	//hht->Draw("colz");
+	//c1->SaveAs("ht.png");
 }
 HTTool::~HTTool()
 {
@@ -127,7 +127,7 @@ vector<vector<HTTool::hit*>> HTTool::MergeAdjacent(vector<HTTool::hit*> hits)
 			int in = (i->id%10000)%100;
 			if((m==im && abs(n-in)==1) || 
 				(n==in && abs(m-im)==1) ||
-				(abs(m-im)==1 && abs(n-in)==1 && false))
+				(abs(m-im)==1 && abs(n-in)==1 && true))
 			{
 				return true;
 			}

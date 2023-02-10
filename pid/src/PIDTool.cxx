@@ -54,19 +54,58 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		return layer_HitCell;
 	},{"hcal_cellid","hcal_celle"})
-	.Define("shower_start",[](vector<int> layer_hitcell)
+	.Define("layer_rms",[](vector<double> hcal_cellx,vector<double> hcal_celly,vector<int> hcal_cellid,vector<double> hcal_celle)->vector<double>
+	{
+		vector<double> layer_rms(40);
+		vector<TH2D*> hvec;
+		for(int i=0;i<40;i++)hvec.emplace_back(new TH2D("h"+TString(to_string(i))+"_rms","Layer RMS",100,-400,400,100,-400,400));
+		for(int i=0;i<hcal_cellx.size();i++)
+		{
+			int layer = hcal_cellid.at(i)/10000;
+			hvec.at(layer)->Fill(hcal_cellx.at(i),hcal_celly.at(i),hcal_celle.at(i));
+		}
+		for(int i=0;i<hvec.size();i++)
+		{
+			if(hvec.at(i)->GetEntries()<4)
+			{
+				layer_rms.at(i) = 0.;
+			}
+			else
+			{
+				layer_rms.at(i) = hvec.at(i)->GetRMS();
+			}
+			delete hvec.at(i);
+		}
+		vector<TH2D*>().swap(hvec);
+		return layer_rms;
+	},{"hcal_cellx","hcal_celly","hcal_cellid","hcal_celle"})
+	.Define("shower_start",[](vector<int> layer_hitcell,vector<double> layer_rms)
 	{
 		int shower_start=42;
 		for(int i=0;i<layer_hitcell.size()-3;i++)
 		{
-			if(layer_hitcell.at(i)>=4 && layer_hitcell.at(i+1)>=4 && layer_hitcell.at(i+2)>=4 && layer_hitcell.at(i+3)>=4)
+			if(layer_hitcell.at(i)>=4 && layer_rms.at(i)<50. && layer_hitcell.at(i+1)>=4 && layer_hitcell.at(i+2)>=4 && layer_hitcell.at(i+3)>=4)
 			{
 				shower_start = i;
 				break;
 			}
 		}
 		return shower_start;
-	},{"layer_hitcell"})
+	},{"layer_hitcell","layer_rms"})
+	.Define("shower_end",[](vector<int> layer_hitcell,vector<double> layer_rms,int shower_start)
+	{
+		int shower_end=42;
+		if(shower_start==42)return shower_end;
+		for(int i=shower_start;i<layer_hitcell.size()-3;i++)
+		{
+			if(layer_hitcell.at(i)<4 && layer_hitcell.at(i+1)<4)
+			{
+				shower_end = i;
+				break;
+			}
+		}
+		return shower_end;
+	},{"layer_hitcell","layer_rms","shower_start"})
 	.Define("layer_xwidth",[](vector<double> Hit_X,vector<int> Hit_PSDID)
 	{
 		vector<double> layer_xwidth(40);
@@ -114,7 +153,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		double shower_layer=0;
 		for(int i=0;i<40;i++)
 		{
-			if(layer_xwidth.at(i)>50 && layer_ywidth.at(i)>50)
+			if(layer_xwidth.at(i)>60 && layer_ywidth.at(i)>60)
 			{
 				shower_layer++;
 			}
@@ -166,31 +205,6 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		shower_density/=hcal_cellid.size();
 		return shower_density;
 	},{"hcal_cellid","hcal_celle"})
-	.Define("layer_rms",[](vector<double> hcal_cellx,vector<double> hcal_celly,vector<int> hcal_cellid,vector<double> hcal_celle)->vector<double>
-	{
-		vector<double> layer_rms(40);
-		vector<TH2D*> hvec;
-		for(int i=0;i<40;i++)hvec.emplace_back(new TH2D("h"+TString(to_string(i))+"_rms","Layer RMS",100,-400,400,100,-400,400));
-		for(int i=0;i<hcal_cellx.size();i++)
-		{
-			int layer = hcal_cellid.at(i)/10000;
-			hvec.at(layer)->Fill(hcal_cellx.at(i),hcal_celly.at(i),hcal_celle.at(i));
-		}
-		for(int i=0;i<hvec.size();i++)
-		{
-			if(hvec.at(i)->GetEntries()<4)
-			{
-				layer_rms.at(i) = 0.;
-			}
-			else
-			{
-				layer_rms.at(i) = hvec.at(i)->GetRMS();
-			}
-			delete hvec.at(i);
-		}
-		vector<TH2D*>().swap(hvec);
-		return layer_rms;
-	},{"hcal_cellx","hcal_celly","hcal_cellid","hcal_celle"})
 	.Define("shower_length",[](vector<double> layer_rms,int shower_start)
 	{
 		double shower_length=0.;
@@ -257,70 +271,34 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 	return 1;
 }
 
-int PIDTool::TrainBDT(const string &bdtname)
+int PIDTool::TrainBDT()
 {
    TMVA::Tools::Instance();
 
-   std::map<std::string,int> Use;
-
-   // Boosted Decision Trees
-   Use["BDT"]             = 1; // uses Adaptive Boost
-
-	vector<TTree*> tsig;
-	vector<TTree*> tbkg;
-	for(auto i:sig)
+	unordered_map<TTree*,TString> tsignal;
+	for(auto i:signal)
 	{
-		TFile *f=TFile::Open(i.first,"READ");
-		TTree *t=(TTree*)f->Get(i.second);
-		tsig.emplace_back(t);
-	}
-	for(auto i:bkg)
-	{
-		TFile *f=TFile::Open(i.first,"READ");
-		TTree *t=(TTree*)f->Get(i.second);
-		tbkg.emplace_back(t);
+		TFile *f=TFile::Open(i.first.first,"READ");
+		TTree *t=(TTree*)f->Get(i.first.second);
+		tsignal.insert(pair<TTree*,TString>(t,i.second));
 	}
    // Create a ROOT output file where TMVA will store ntuples, histograms, etc.
-   TString outfileName( "TMVA_"+bdtname+".root" );
+   TString outfileName( "TMVAMulticlass.root" );
    TFile* outputFile = TFile::Open( outfileName, "RECREATE" );
 
-   TMVA::Factory *factory = new TMVA::Factory( "TMVAClassification", outputFile,
-                                               "!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=Classification" );
+   TMVA::Factory *factory = new TMVA::Factory( "TMVAMulticlass", outputFile,
+                                               "!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=multiclass" );
 
-   TMVA::DataLoader *dataloader=new TMVA::DataLoader("dataset_"+TString(bdtname));
+   TMVA::DataLoader *dataloader=new TMVA::DataLoader("dataset");
 	for(auto i:var)
 	{
 		dataloader->AddVariable(i.first,i.second);
 	}
-   //dataloader->AddVariable( "xwidth", 'D' );
-   //dataloader->AddVariable( "ywidth", 'D' );
-   //dataloader->AddVariable( "zwidth", 'D' );
-   //dataloader->AddVariable( "Edep ", 'D' );
-
    // You can add an arbitrary number of signal or background trees
-   for(auto i:tsig)dataloader->AddSignalTree(i,1.0);
-	for(auto i:tbkg)dataloader->AddBackgroundTree(i,1.0);
+   for(auto i:tsignal)dataloader->AddTree(i.first,i.second);
+   dataloader->PrepareTrainingAndTestTree( "", "SplitMode=Random:NormMode=NumEvents:!V" );
 
-   dataloader->SetBackgroundWeightExpression( "1" );
-
-   // Apply additional cuts on the signal and background samples (can be different)
-   TCut mycuts = ""; // for example: TCut mycuts = "abs(var1)<0.5 && abs(var2-0.5)<1";
-   TCut mycutb = ""; // for example: TCut mycutb = "abs(var1)<0.5";
-
-	int nsig=0;for(auto i:tsig)nsig+=i->GetEntries();
-	int nbkg=0;for(auto i:tbkg)nbkg+=i->GetEntries();
-	int nTrain_Signal = 0.7*nsig;
-	int nTrain_Bkg = 0.7*nbkg;
-   dataloader->PrepareTrainingAndTestTree( mycuts, mycutb,
-                                        "nTrain_Signal="+TString(to_string(nTrain_Signal))+":nTrain_Background="+TString(to_string(nTrain_Bkg))+":SplitMode=Random:NormMode=NumEvents:!V" );
-
-   // Cut optimisation
-   if (Use["BDT"])  // Adaptive Boost
-      factory->BookMethod( dataloader, TMVA::Types::kBDT, "BDT",
-                           "!H:!V:NTrees=850:MinNodeSize=2.5%:MaxDepth=3:BoostType=AdaBoost:AdaBoostBeta=0.5:UseBaggedBoost:BaggedSampleFraction=0.5:SeparationType=GiniIndex:nCuts=20" );
-
-   // --------------------------------------------------------------------------------------------------
-
+	factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=1000:BoostType=Grad:Shrinkage=0.10:UseBaggedBoost:BaggedSampleFraction=0.50:nCuts=20:MaxDepth=2");
    // Now you can tell the factory to train, test, and evaluate the MVAs
    //
    // Train MVAs using the set of training events
@@ -347,4 +325,100 @@ int PIDTool::TrainBDT(const string &bdtname)
 
    return 0;
 	
+}
+
+int PIDTool::BDTNtuple(const string &fname,const string &tname)
+{
+	ROOT::EnableImplicitMT();
+	string outname = fname;
+	outname = outname.substr(outname.find_last_of('/')+1);
+	outname = "bdt_"+outname;
+	// This loads the library
+	TMVA::Tools::Instance();
+
+	// Default MVA methods to be trained + tested
+	std::map<std::string,int> Use;
+
+	// Cut optimisation
+    Use["BDTG"]            = 1;
+	std::cout << "==> Start TMVAMulticlassApplication" << std::endl;
+	TMVA::Reader *reader = new TMVA::Reader( "!Color:!Silent" );
+	Float_t        bdt_xwidth;
+	Float_t        bdt_ywidth;
+	Float_t        bdt_zwidth;
+	Float_t        bdt_Edep;
+	Float_t			bdt_shower_start;
+	Float_t        bdt_shower_layer_ratio;
+	Float_t        bdt_shower_density;
+	Float_t        bdt_shower_length;
+	Float_t		bdt_ntrack;
+	reader->AddVariable("Edep",&bdt_Edep);
+	reader->AddVariable("ntrack",&bdt_ntrack);
+	reader->AddVariable("shower_density",&bdt_shower_density);
+	reader->AddVariable("shower_layer_ratio",&bdt_shower_layer_ratio);
+	reader->AddVariable("shower_length",&bdt_shower_length);
+	reader->AddVariable("shower_start",&bdt_shower_start);
+	reader->AddVariable("xwidth",&bdt_xwidth);
+	reader->AddVariable("ywidth",&bdt_ywidth);
+	reader->AddVariable("zwidth",&bdt_zwidth);
+
+	reader->BookMVA("BDTG method",TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
+	cout<<"Booked"<<endl;
+	vector<string> rdf_input={"Edep","ntrack","shower_density","shower_layer_ratio","shower_length","shower_start","xwidth","ywidth","zwidth"};
+	ROOT::RDataFrame df(tname,fname);
+	auto bdtout = df
+	.Define("bdt_pion",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	{
+		bdt_xwidth = x;
+		bdt_ywidth = y;
+		bdt_zwidth = z;
+		bdt_Edep   = e;
+		bdt_shower_start = s;
+		bdt_shower_layer_ratio = lr;
+		bdt_shower_density = d;
+		bdt_shower_length = l;
+		bdt_ntrack = n;
+		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
+	},rdf_input)
+	.Define("bdt_e",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	{
+		bdt_xwidth = x;
+		bdt_ywidth = y;
+		bdt_zwidth = z;
+		bdt_Edep   = e;
+		bdt_shower_start = s;
+		bdt_shower_layer_ratio = lr;
+		bdt_shower_density = d;
+		bdt_shower_length = l;
+		bdt_ntrack = n;
+		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
+	},rdf_input)
+	.Define("bdt_mu",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	{
+		bdt_xwidth = x;
+		bdt_ywidth = y;
+		bdt_zwidth = z;
+		bdt_Edep   = e;
+		bdt_shower_start = s;
+		bdt_shower_layer_ratio = lr;
+		bdt_shower_density = d;
+		bdt_shower_length = l;
+		bdt_ntrack = n;
+		return (reader->EvaluateMulticlass( "BDTG method" ))[3];
+	},rdf_input)
+	.Define("bdt_proton",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	{
+		bdt_xwidth = x;
+		bdt_ywidth = y;
+		bdt_zwidth = z;
+		bdt_Edep   = e;
+		bdt_shower_start = s;
+		bdt_shower_layer_ratio = lr;
+		bdt_shower_density = d;
+		bdt_shower_length = l;
+		bdt_ntrack = n;
+		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
+	},rdf_input)
+	.Snapshot(tname,outname);
+	return 1;
 }

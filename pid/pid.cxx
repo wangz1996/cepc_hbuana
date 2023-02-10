@@ -5,7 +5,8 @@ using namespace std;
 int main(int argc,char* argv[])
 {
 	string file="",tree="";
-	int train=0;
+	string fntuple="",tntuple="";
+	int train=0,bdtntuple=0;
 	for(int i=1;i<argc;i++)
 	{
 		if(string(argv[i])==string("-f"))
@@ -19,6 +20,12 @@ int main(int argc,char* argv[])
 		else if(string(argv[i])==string("-train"))
 		{
 			train=1;
+		}
+		else if(string(argv[i])==string("-tag"))
+		{
+			bdtntuple=1;
+			fntuple = string(argv[i+1]);
+			tntuple = string(argv[i+2]);
 		}
 	}
 	cout<<file<<" "<<tree<<endl;
@@ -37,10 +44,18 @@ int main(int argc,char* argv[])
 		pt->AddVar("shower_layer_ratio",'D');
 		pt->AddVar("shower_density",'D');
 		pt->AddVar("shower_length",'D');
-		pt->AddSig("pid_pion.root","T");
-		pt->AddBkg("pid_e.root","T");
-		pt->AddBkg("pid_muon.root","T");
-		pt->TrainBDT("pion");
+		pt->AddVar("ntrack",'D');
+
+		pt->AddSignal("pid_pion.root","T","pion");
+		pt->AddSignal("pid_e.root","T","electron");
+		pt->AddSignal("pid_muon.root","T","muon");
+		pt->AddSignal("pid_proton.root","T","proton");
+		
+		pt->TrainBDT();
+	}
+	if(bdtntuple==1)
+	{
+		pt->BDTNtuple(fntuple,tntuple);
 	}
 	delete pt;
 	return 0;
