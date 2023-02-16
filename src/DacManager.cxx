@@ -18,11 +18,16 @@ DacManager::DacManager(const TString &outname)
 	charges = 0;
 	times = 0;
 	tout->Branch("cellid",&_cellid);
+	tout->Branch("layer",&_layer);
+	tout->Branch("chip",&_chip);
+	tout->Branch("chn",&_chn);
+	tout->Branch("plat",&_plat);
 	tout->Branch("slope",&_slope);
 	hdacslope=new TH2D("hdacslope","HighGain/LowGain",360,0,360,36,0,36);
 	hfit=new TH2D("hfit","Fitting Goodness",360,0,360,36,0,36);
 	hhighgain_platform=new TH2D("hhighgain_platform","High Gain Platform",360,0,360,36,0,36);
 	f1 = new TF1("f1","[0]*x+[1]"); // Function used to fit the slope (High_gain / Low_gain)
+	f1->SetParLimits(0,1.,10.);
 	f2 = new TF1("f2","[0]*x+[1]"); // Function used to fetch the high gain platform
 	//cout<<"Initialization done"<<endl;
 }
@@ -57,7 +62,7 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 				int tmp_cellid=l*1e5+c*1e4+chn;
 				TString tmp_name="hdac_"+TString(to_string(tmp_cellid).c_str());
 				if(mode=="dac")map_cellid_calib[tmp_cellid]=new TH2D(tmp_name,tmp_name,200,-100,3400,200,-200,300); // 
-				else if(mode=="cosmic")map_cellid_calib[tmp_cellid]=new TH2D(tmp_name,tmp_name,200,-200,3500,200,-100,500); //
+				else if(mode=="cosmic")map_cellid_calib[tmp_cellid]=new TH2D(tmp_name,tmp_name,200,-200,3000,200,-100,200); //
 			}
 		}
 	}
@@ -141,16 +146,41 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 		double highgain_platform = 10000.;
 		double slope = -10.; // Slope after fitting
 		double xfit=0;
-		if(mode == "dac")
+		auto findf = [](TH2D *h2,int binx,int biny)
 		{
-		}
-		for(int ii=i.second->GetNbinsX();ii>0;ii--)
-		{
-			for(int jj=i.second->GetNbinsY();jj>0;jj--)
+			bool adj=false;
+			for(int i=binx-20;i<=binx+20;i++)
 			{
-				if(i.second->GetBinContent(ii,jj)>0 && i.second->GetYaxis()->GetBinCenter(jj)>100)
+				for(int j=biny-20;j<=biny+20;j++)
 				{
-					xfit = i.second->GetXaxis()->GetBinCenter(ii);
+					if(h2->GetBinContent(i,j)>0)
+					{
+						adj=true;
+						break;
+					}
+				}
+			}
+			return adj;
+		};
+		for(int index=0;index<200;index++)
+		{
+			for(int ij=i.second->GetNbinsY();ij>=i.second->GetNbinsY()-index;ij--)
+			{
+				int binx=i.second->GetNbinsX()-index;
+				int biny=ij;
+				if(i.second->GetBinContent(binx,biny)>0 && i.second->GetYaxis()->GetBinCenter(biny)>10 && findf(i.second,binx,biny))
+				{
+					xfit = i.second->GetXaxis()->GetBinCenter(binx);
+					break;
+				}
+			}
+			for(int ii=i.second->GetNbinsX();ii>=i.second->GetNbinsX()-index;ii--)
+			{
+				int binx=ii;
+				int biny=i.second->GetNbinsY()-index;
+				if(i.second->GetBinContent(binx,biny)>0 && i.second->GetYaxis()->GetBinCenter(biny)>10 && findf(i.second,binx,biny))
+				{
+					xfit = i.second->GetXaxis()->GetBinCenter(binx);
 					break;
 				}
 			}
@@ -228,6 +258,10 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 		//Fill tree
 		_cellid = cellid;
 		_slope = slope;
+		_plat = highgain_platform;
+		_layer = layer;
+		_chip = chip;
+		_chn = channel;
 		tout->Fill();
 	});
 	fout->cd();

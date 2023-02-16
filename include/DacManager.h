@@ -45,7 +45,11 @@ public:
 	double time_min=1000.,time_max=0.;
 	double charge_min=1000.,charge_max=0.;
 	double _slope=0.;
-	int _cellid;
+	int _cellid=-1;
+	int _layer=-1;
+	int _chip=-1;
+	int _chn=-1;
+	double _plat=-1;
 	string	input_list;
 	TF1	*f1;
 	TF1	*f2;
