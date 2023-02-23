@@ -187,7 +187,7 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 			if(xfit>100)break;
 		}
 		i.second->Fit(f1,"q+","",xfit-100,xfit);
-		i.second->Fit(f2,"q+","",-100,xfit-500);
+		i.second->Fit(f2,"q+","",50,xfit-500);
 		double k1=f1->GetParameter(0);
 		double k2=f2->GetParameter(0);
 		double b1=f1->GetParameter(1);
