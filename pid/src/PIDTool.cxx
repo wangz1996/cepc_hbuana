@@ -367,7 +367,7 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 	vector<string> rdf_input={"Edep","ntrack","shower_density","shower_layer_ratio","shower_length","shower_start","xwidth","ywidth","zwidth"};
 	ROOT::RDataFrame df(tname,fname);
 	auto bdtout = df
-	.Define("bdt_pion",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	.Define("BDT_pi_plus",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -380,7 +380,7 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 	},rdf_input)
-	.Define("bdt_e",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	.Define("BDT_e_plus",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -393,7 +393,7 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
 	},rdf_input)
-	.Define("bdt_mu",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	.Define("BDT_mu_plus",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
