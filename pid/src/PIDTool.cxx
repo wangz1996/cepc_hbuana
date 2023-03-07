@@ -106,6 +106,27 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		return shower_end;
 	},{"layer_hitcell","layer_rms","shower_start"})
+    .Define("radius_shower", [] (vector<Double_t> hit_x, vector<Double_t> hit_y, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
+    {
+        LongDouble_t d2 = 0;
+        Int_t hits = 0;
+        const Int_t n = hit_x.size();
+        for (Int_t i = 0; i < n; i++)
+        {
+            if (hit_z.at(i) / 25.0 >= beginning && hit_z.at(i) / 25.0 < ending)
+            {
+                hits++;
+                d2 += TMath::Power(hit_x.at(i), 2) + TMath::Power(hit_y.at(i), 2);
+            }
+        }
+        if (hits == 0)
+            return 0.0;
+        else
+        {
+            Double_t radius = TMath::Sqrt(d2 / hits);
+            return radius;
+        }
+    }, {"hcal_cellx", "hcal_celly", "hcal_cellz", "shower_start", "shower_end"})
 	.Define("layer_xwidth",[](vector<double> Hit_X,vector<int> Hit_PSDID)
 	{
 		vector<double> layer_xwidth(40);
