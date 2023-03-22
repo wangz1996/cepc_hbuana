@@ -16,53 +16,54 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 	string outname = file;
     outname = outname.substr(outname.find_last_of('/')+1);
 	outname = "pid_"+outname;
-	auto fout = dm->Define("xwidth",[](vector<double> Hit_X)
+	auto fout = dm
+	->Define("xwidth",[](vector<double> Hit_X)
     {
         TH1D *h1=new TH1D("h1","test",100,-400,400);
         for(auto i:Hit_X)h1->Fill(i);
         double xwidth = h1->GetRMS();
         delete h1;
         return xwidth;
-    },{"hcal_cellx"})
+    },{"Hit_X"})
     .Define("ywidth",[](vector<double> Hit_Y){
         TH1D *h1=new TH1D("h1","test",100,-400,400);
         for(auto i:Hit_Y)h1->Fill(i);
         double ywidth = h1->GetRMS();
         delete h1;
         return ywidth;
-    },{"hcal_celly"})
+    },{"Hit_Y"})
     .Define("zwidth",[](vector<double> Hit_Z){
         TH1D *h1=new TH1D("h1","test",100,-0,1200);
         for(auto i:Hit_Z)h1->Fill(i);
         double zwidth = h1->GetRMS();
         delete h1;
         return zwidth;
-    },{"hcal_cellz"})
+    },{"Hit_Z"})
     .Define("Edep",[](vector<double> Hit_Energy){
         double sum=0.;
         for(auto i:Hit_Energy)sum+=i;
         return sum;
-    },{"hcal_celle"})
-	.Define("layer_hitcell",[](vector<int> hcal_cellid,vector<double> hcal_celle)
+    },{"Hit_Energy"})
+	.Define("layer_hitcell",[](vector<int> CellID,vector<double> Hit_Energy)
 	{
 		vector<int> layer_HitCell(40);
-		for(int i=0;i<hcal_cellid.size();i++)
+		for(int i=0;i<CellID.size();i++)
 		{
-			int layer = hcal_cellid.at(i)/10000;
-			if(hcal_celle.at(i)<0.1)continue;
+			int layer = CellID.at(i)/100000;
+			if(Hit_Energy.at(i)<0.1)continue;
 			layer_HitCell.at(layer)++;
 		}
 		return layer_HitCell;
-	},{"hcal_cellid","hcal_celle"})
-	.Define("layer_rms",[](vector<double> hcal_cellx,vector<double> hcal_celly,vector<int> hcal_cellid,vector<double> hcal_celle)->vector<double>
+	},{"CellID","Hit_Energy"})
+	.Define("layer_rms",[](vector<double> Hit_X,vector<double> Hit_Y,vector<int> CellID,vector<double> Hit_Energy)->vector<double>
 	{
 		vector<double> layer_rms(40);
 		vector<TH2D*> hvec;
 		for(int i=0;i<40;i++)hvec.emplace_back(new TH2D("h"+TString(to_string(i))+"_rms","Layer RMS",100,-400,400,100,-400,400));
-		for(int i=0;i<hcal_cellx.size();i++)
+		for(int i=0;i<Hit_X.size();i++)
 		{
-			int layer = hcal_cellid.at(i)/10000;
-			hvec.at(layer)->Fill(hcal_cellx.at(i),hcal_celly.at(i),hcal_celle.at(i));
+			int layer = CellID.at(i)/100000;
+			hvec.at(layer)->Fill(Hit_X.at(i),Hit_Y.at(i),Hit_Energy.at(i));
 		}
 		for(int i=0;i<hvec.size();i++)
 		{
@@ -78,7 +79,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		vector<TH2D*>().swap(hvec);
 		return layer_rms;
-	},{"hcal_cellx","hcal_celly","hcal_cellid","hcal_celle"})
+	},{"Hit_X","Hit_Y","CellID","Hit_Energy"})
 	.Define("shower_start",[](vector<int> layer_hitcell,vector<double> layer_rms)
 	{
 		int shower_start=42;
@@ -116,7 +117,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		for(int i=0;i<Hit_PSDID.size();i++)
 		{
-			int layer = Hit_PSDID.at(i)/10000;
+			int layer = Hit_PSDID.at(i)/100000;
 			h.at(layer)->Fill(Hit_X.at(i));
 		}
 		for(int i=0;i<h.size();i++)
@@ -126,7 +127,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		vector<TH1D*>().swap(h);
 		return layer_xwidth;
-	},{"hcal_cellx","hcal_cellid"})
+	},{"Hit_X","CellID"})
 	.Define("layer_ywidth",[](vector<double> Hit_Y,vector<int> Hit_PSDID)
 	{
 		vector<double> layer_ywidth(40);
@@ -137,7 +138,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		for(int i=0;i<Hit_PSDID.size();i++)
 		{
-			int layer = Hit_PSDID.at(i)/10000;
+			int layer = Hit_PSDID.at(i)/100000;
 			h.at(layer)->Fill(Hit_Y.at(i));
 		}
 		for(int i=0;i<h.size();i++)
@@ -147,7 +148,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		vector<TH1D*>().swap(h);
 		return layer_ywidth;
-	},{"hcal_celly","hcal_cellid"})
+	},{"Hit_Y","CellID"})
 	.Define("shower_layer",[](vector<int> Hit_PSDID,vector<double> layer_xwidth,vector<double> layer_ywidth)
 	{
 		double shower_layer=0;
@@ -159,14 +160,14 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 			}
 		}
 		return shower_layer;
-	},{"hcal_cellid","layer_xwidth","layer_ywidth"})
+	},{"CellID","layer_xwidth","layer_ywidth"})
 	.Define("hit_layer",[](vector<int> Hit_PSDID)
 	{
 		double hit_layer=0;
 		unordered_map<int,int> map_layer_hit;
 		for(auto i:Hit_PSDID)
 		{
-			int layer = i/10000;
+			int layer = i/100000;
 			map_layer_hit[layer]++;
 		}
 		for(int i=0;i<40;i++)
@@ -174,97 +175,133 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 			if(map_layer_hit.count(i)>0)hit_layer++;
 		}
 		return hit_layer;
-	},{"hcal_cellid"})
+	},{"CellID"})
 	.Define("shower_layer_ratio","shower_layer/hit_layer")
-	.Define("shower_density",[](vector<int> hcal_cellid,vector<double> hcal_celle)
+	.Define("shower_density",[](vector<int> CellID,vector<double> Hit_Energy,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z)
 	{
 		double shower_density=0.;
-		unordered_map<int,int> map_hcal_cellid;
-		for(auto i:hcal_cellid)
+		unordered_map<int,int> map_CellID;
+		double xend = -342.551;
+		double xgap = 40.2996;
+		double yend = -340.557;
+		double ygap = 39.9874;
+		for(int i=0;i<Hit_X.size();i++)
 		{
-			map_hcal_cellid[i] = 1;
+			int ix = round((Hit_X.at(i)-xend)/xgap);
+        	int iy = round((Hit_Y.at(i)-yend)/ygap);
+			int layer = CellID.at(i)/100000;
+			int cellid = layer*10000+ix*100 + iy;
+			int memo = (CellID.at(i)%10000)/100;
+			if(memo!=0)continue;
+			map_CellID[cellid]=1;
 		}
-		for(int i=0;i<hcal_cellid.size();i++)
+		int nhit = map_CellID.size();
+		for(auto i:map_CellID)
 		{
-			if(hcal_celle.at(i)<0.1)continue;
-			int layer = hcal_cellid.at(i)/10000;
-			int x = (hcal_cellid.at(i)%10000)/100;
-			int y = (hcal_cellid.at(i)%100);
-			for(int _l=layer-1;_l<=layer+1;_l++)
+			int layer = i.first/10000;
+			int x = (i.first%10000)/100;
+			int y = i.first%100;
+			for(int il=layer-1;il<=layer+1;il++)
 			{
-				for(int _x=x-1;_x<=x+1;_x++)
+				if(il<0 || il>39)continue;
+				for(int ix=x-1;ix<=x+1;ix++)
 				{
-					for(int _y=y-1;_y<=y+1;_y++)
+					if(ix<0 || ix>17)continue;
+					for(int iy=y-1;iy<=y+1;iy++)
 					{
-						int _id=_l*10000+_x*100+_y;
-						shower_density += map_hcal_cellid[_id];
+						if(iy<0 || iy>17)continue;
+						int tmp = il*10000+ix*100+iy;
+						if(map_CellID.count(tmp))shower_density++;
+						//if(1)shower_density++;
 					}
 				}
 			}
 		}
-		shower_density/=hcal_cellid.size();
+		shower_density/=nhit;
+		//cout<<"DEBUG: "<<shower_density<<endl;
 		return shower_density;
-	},{"hcal_cellid","hcal_celle"})
-	.Define("shower_length",[](vector<double> layer_rms,int shower_start)
+	},{"CellID","Hit_Energy","Hit_X","Hit_Y","Hit_Z"})
+	.Define("shower_length",[](vector<double> layer_rms,int shower_start,int shower_end)
 	{
 		double shower_length=0.;
 		double startz = 300. + 1.5+shower_start*25.;
 		int max_layer =0;
 		double max_rms=0.;
-		for(int i=0;i<layer_rms.size();i++)
-		{
-			if(layer_rms.at(i)>max_rms)
-			{
-				max_layer=i;
-				max_rms=layer_rms.at(i);
-			}
-		}
+		//for(int i=0;i<layer_rms.size();i++)
+		//{
+		//	if(layer_rms.at(i)>max_rms)
+		//	{
+		//		max_layer=i;
+		//		max_rms=layer_rms.at(i);
+		//	}
+		//}
 		//auto maxPosition = max_element(layer_rms.begin()+shower_start, layer_rms.end());
 		//int max_layer= maxPosition - layer_rms.begin();
-		shower_length = (max_layer-shower_start)*25.;
+		shower_length = (shower_end-shower_start)*25.;
 		if(shower_start==42)shower_length=0.;
 		return shower_length;
-	},{"layer_rms","shower_start"})
-	.Define("hclx",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	},{"layer_rms","shower_start","shower_end"})
+    .Define("shower_radius", [] (vector<Double_t> hit_x, vector<Double_t> hit_y, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
+    {
+        Double_t d2 = 0;
+        Int_t hits = 0;
+        const Int_t n = hit_x.size();
+        for (Int_t i = 0; i < n; i++)
+        {
+            if (hit_z.at(i) / 25.0 >= beginning && hit_z.at(i) / 25.0 < ending)
+            {
+                hits++;
+                d2 += TMath::Power(hit_x.at(i), 2) + TMath::Power(hit_y.at(i), 2);
+            }
+        }
+        if (hits == 0)
+            return 0.0;
+        else
+        {
+            Double_t radius = TMath::Sqrt(d2 / hits);
+            return radius;
+        }
+    }, {"Hit_X", "Hit_Y", "Hit_Z", "shower_start", "shower_end"})
+	.Define("hclx",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
 	{
 		vector<double> hclx;
-		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
 		hclx = httool->GetHclX();
 		delete httool;
 		return hclx;
-	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
-	.Define("hcly",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
+	.Define("hcly",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
 	{
 		vector<double> hcly;
-		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
 		hcly = httool->GetHclY();
 		delete httool;
 		return hcly;
-	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
-	.Define("hclz",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
+	.Define("hclz",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
 	{
 		vector<double> hclz;
-		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
 		hclz = httool->GetHclZ();
 		delete httool;
 		return hclz;
-	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
-	.Define("hcle",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
+	.Define("hcle",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
 	{
 		vector<double> hcle;
-		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
 		hcle = httool->GetHclE();
 		delete httool;
 		return hcle;
-	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
-	.Define("ntrack",[](vector<int> hcal_cellid,vector<double> hcal_cellx,vector<double> hcal_celly,vector<double> hcal_cellz,vector<double> hcal_celle)
+	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
+	.Define("ntrack",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
 	{
 		int ntrack=0;
-		HTTool *httool = new HTTool(hcal_cellid,hcal_cellx,hcal_celly,hcal_cellz,hcal_celle);
+		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
 		ntrack = httool->GetNtrack();
 		delete httool;
 		return ntrack;
-	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
+	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
 	//.Range(1)
     .Snapshot(tree,outname);
 	delete dm;
@@ -350,6 +387,7 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 	Float_t			bdt_shower_start;
 	Float_t        bdt_shower_layer_ratio;
 	Float_t        bdt_shower_density;
+	Float_t        bdt_shower_radius;
 	Float_t        bdt_shower_length;
 	Float_t		bdt_ntrack;
 	reader->AddVariable("Edep",&bdt_Edep);
@@ -357,17 +395,18 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 	reader->AddVariable("shower_density",&bdt_shower_density);
 	reader->AddVariable("shower_layer_ratio",&bdt_shower_layer_ratio);
 	reader->AddVariable("shower_length",&bdt_shower_length);
+	reader->AddVariable("shower_radius",&bdt_shower_radius);
 	reader->AddVariable("shower_start",&bdt_shower_start);
 	reader->AddVariable("xwidth",&bdt_xwidth);
 	reader->AddVariable("ywidth",&bdt_ywidth);
 	reader->AddVariable("zwidth",&bdt_zwidth);
 
-	reader->BookMVA("BDTG method",TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
+	reader->BookMVA("BDTG method",TString("/lustre/collider/wangzhen/cepc/ahcal/cepc_hbuana/run/pid/dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
 	cout<<"Booked"<<endl;
-	vector<string> rdf_input={"Edep","ntrack","shower_density","shower_layer_ratio","shower_length","shower_start","xwidth","ywidth","zwidth"};
+	vector<string> rdf_input={"Edep","ntrack","shower_density","shower_layer_ratio","shower_length","shower_radius","shower_start","xwidth","ywidth","zwidth"};
 	ROOT::RDataFrame df(tname,fname);
 	auto bdtout = df
-	.Define("BDT_pi_plus",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	.Define("BDT_pi_plus",[&](double e,int n,double d,double lr,double l,double r,int s,double x,double y,double z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -376,49 +415,52 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 		bdt_shower_start = s;
 		bdt_shower_layer_ratio = lr;
 		bdt_shower_density = d;
-		bdt_shower_length = l;
-		bdt_ntrack = n;
-		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
-	},rdf_input)
-	.Define("BDT_e_plus",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
-	{
-		bdt_xwidth = x;
-		bdt_ywidth = y;
-		bdt_zwidth = z;
-		bdt_Edep   = e;
-		bdt_shower_start = s;
-		bdt_shower_layer_ratio = lr;
-		bdt_shower_density = d;
-		bdt_shower_length = l;
-		bdt_ntrack = n;
-		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
-	},rdf_input)
-	.Define("BDT_mu_plus",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
-	{
-		bdt_xwidth = x;
-		bdt_ywidth = y;
-		bdt_zwidth = z;
-		bdt_Edep   = e;
-		bdt_shower_start = s;
-		bdt_shower_layer_ratio = lr;
-		bdt_shower_density = d;
-		bdt_shower_length = l;
-		bdt_ntrack = n;
-		return (reader->EvaluateMulticlass( "BDTG method" ))[3];
-	},rdf_input)
-	.Define("bdt_proton",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
-	{
-		bdt_xwidth = x;
-		bdt_ywidth = y;
-		bdt_zwidth = z;
-		bdt_Edep   = e;
-		bdt_shower_start = s;
-		bdt_shower_layer_ratio = lr;
-		bdt_shower_density = d;
+		bdt_shower_radius = r;
 		bdt_shower_length = l;
 		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 	},rdf_input)
+	.Define("BDT_e_plus",[&](double e,int n,double d,double lr,double l,double r,int s,double x,double y,double z)
+	{
+		bdt_xwidth = x;
+		bdt_ywidth = y;
+		bdt_zwidth = z;
+		bdt_Edep   = e;
+		bdt_shower_start = s;
+		bdt_shower_layer_ratio = lr;
+		bdt_shower_density = d;
+		bdt_shower_radius = r;
+		bdt_shower_length = l;
+		bdt_ntrack = n;
+		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
+	},rdf_input)
+	.Define("BDT_mu_plus",[&](double e,int n,double d,double lr,double l,double r,int s,double x,double y,double z)
+	{
+		bdt_xwidth = x;
+		bdt_ywidth = y;
+		bdt_zwidth = z;
+		bdt_Edep   = e;
+		bdt_shower_start = s;
+		bdt_shower_layer_ratio = lr;
+		bdt_shower_density = d;
+		bdt_shower_radius = r;
+		bdt_shower_length = l;
+		bdt_ntrack = n;
+		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
+	},rdf_input)
+	//.Define("bdt_proton",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	//{
+	//	bdt_xwidth = x;
+	//	bdt_ywidth = y;
+	//	bdt_zwidth = z;
+	//	bdt_Edep   = e;
+	//	bdt_shower_start = s;
+	//	bdt_shower_layer_ratio = lr;
+	//	bdt_shower_density = d;
+	//	bdt_shower_length = l;
+	//	bdt_ntrack = n;
+	//	return (reader->EvaluateMulticlass( "BDTG method" ))[0];
+	//},rdf_input)
 	.Snapshot(tname,outname);
 	return 1;
 }

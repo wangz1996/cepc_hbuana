@@ -43,14 +43,38 @@ int main(int argc,char* argv[])
 		pt->AddVar("shower_start",'I');
 		pt->AddVar("shower_layer_ratio",'D');
 		pt->AddVar("shower_density",'D');
+		pt->AddVar("shower_radius",'D');
 		pt->AddVar("shower_length",'D');
 		pt->AddVar("ntrack",'D');
 
-		pt->AddSignal("pid_pion.root","T","pion");
-		pt->AddSignal("pid_e.root","T","electron");
-		pt->AddSignal("pid_muon.root","T","muon");
-		pt->AddSignal("pid_proton.root","T","proton");
-		
+		pt->AddSignal("/lustre/collider/wangzhen/cepc/ahcal/calib_file/pid_ihep/mini/pi.root","Calib_Hit","pion");
+		pt->AddSignal("/lustre/collider/wangzhen/cepc/ahcal/calib_file/pid_ihep/mini/mu.root","Calib_Hit","muon");
+		pt->AddSignal("/lustre/collider/wangzhen/cepc/ahcal/calib_file/pid_ihep/mini/e.root","Calib_Hit","electron");
+
+		//ifstream liste("/lustre/collider/wangzhen/cepc/ahcal/pid_ntuple/e+/liste.txt");
+		//while(!liste.eof())
+		//{
+		//	string temp;
+		//	liste>>temp;
+		//	if(temp=="")continue;
+		//	pt->AddSignal(temp,"T","electron");
+		//}
+		//ifstream listpi("/lustre/collider/wangzhen/cepc/ahcal/pid_ntuple/pi+/listpi.txt");
+		//while(!listpi.eof())
+		//{
+		//	string temp;
+		//	listpi>>temp;
+		//	if(temp=="")continue;
+		//	pt->AddSignal(temp,"T","pion");
+		//}
+		//ifstream listmu("/lustre/collider/wangzhen/cepc/ahcal/pid_ntuple/mu+/listmu.txt");
+		//while(!listmu.eof())
+		//{
+		//	string temp;
+		//	listmu>>temp;
+		//	if(temp=="")continue;
+		//	pt->AddSignal(temp,"T","muon");
+		//}
 		pt->TrainBDT();
 	}
 	if(bdtntuple==1)
