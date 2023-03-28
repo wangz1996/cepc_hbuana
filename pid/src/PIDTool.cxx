@@ -286,6 +286,60 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		delete httool;
 		return ntrack;
 	},{"hcal_cellid","hcal_cellx","hcal_celly","hcal_cellz","hcal_celle"})
+    .Define("time_mean_hit", [] (vector<Double_t> hit_time)
+    {
+        Double_t tot = 0;
+        const Int_t hits = hit_time.size();
+        for (Double_t& i : hit_time)
+            tot += i;
+        return tot / hits;
+    }, {"hcal_time"})
+    .Define("time_rms_hit", [] (vector<Double_t> hit_time)
+    {
+        Double_t tot2 = 0;
+        const Int_t hits = hit_time.size();
+        for (Double_t& i : hit_time)
+            tot2 += i * i;
+        return TMath::Sqrt(tot2 / hits);
+    }, {"hcal_time"})
+    /*
+    .Define("time_mean_shower", [] (vector<Double_t> hit_time, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
+    {
+        Double_t tot = 0;
+        Int_t hits = 0;
+        const Int_t n = hit_time.size();
+        for (Int_t i = 0; i < n; i++)
+        {
+            if (hit_z.at(i) / 25.0 >= beginning && hit_z.at(i) / 25.0 < ending)
+            {
+                hits++;
+                tot += hit_time.at(i), 2;
+            }
+        }
+        if (hits == 0)
+            return 0.0;
+        else
+            return tot / hits;
+    }, {"hcal_cellx", "hcal_celly", "hcal_cellz", "shower_start", "shower_end"})
+    .Define("time_rms_shower", [] (vector<Double_t> hit_time, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
+    {
+        Double_t tot2 = 0;
+        Int_t hits = 0;
+        const Int_t n = hit_time.size();
+        for (Int_t i = 0; i < n; i++)
+        {
+            if (hit_z.at(i) / 25.0 >= beginning && hit_z.at(i) / 25.0 < ending)
+            {
+                hits++;
+                tot2 += TMath::Power(hit_time.at(i), 2);
+            }
+        }
+        if (hits == 0)
+            return 0.0;
+        else
+            return tot2 / hits;
+    }, {"hcal_cellx", "hcal_celly", "hcal_cellz", "shower_start", "shower_end"})
+    */
 	//.Range(1)
     .Snapshot(tree,outname);
 	delete dm;
