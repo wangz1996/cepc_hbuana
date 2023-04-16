@@ -24,7 +24,7 @@ Turn Cosmic/DAC "on-off" to "True" if you want to analyze with Cosmic/DAC files;
 Give a root file list at "file-list";  
 Specify a pedestal file at "ped-file";  
 
-##Usage (Detailed)
+## Usage (Detailed)
 To run the programme, just simply type this:
 ```
 	hbuana -c config.yaml

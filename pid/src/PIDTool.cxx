@@ -18,82 +18,87 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 	string outname = file;
     outname = outname.substr(outname.find_last_of('/')+1);
 	outname = "pid_"+outname;
-	auto fout = dm->Define("xwidth",[](vector<double> Hit_X)
+	auto fout = dm->Define("xwidth", [] (vector<Double_t> Hit_X)
     {
-        TH1D *h1=new TH1D("h1","test",100,-400,400);
-        for(auto i:Hit_X)h1->Fill(i);
-        double xwidth = h1->GetRMS();
+        TH1D* h1 = new TH1D("h1", "", 100, -400, 400);
+        for (Double_t i : Hit_X)
+            h1->Fill(i);
+        Double_t xwidth = h1->GetRMS();
         delete h1;
         return xwidth;
-    },{"Hit_X"})
-    .Define("ywidth",[](vector<double> Hit_Y){
-        TH1D *h1=new TH1D("h1","test",100,-400,400);
-        for(auto i:Hit_Y)h1->Fill(i);
-        double ywidth = h1->GetRMS();
+    }, {"Hit_X"})
+    .Define("ywidth", [] (vector<Double_t> Hit_Y)
+    {
+        TH1D* h1 = new TH1D("h1", "", 100, -400, 400);
+        for (Double_t i : Hit_Y)
+            h1->Fill(i);
+        Double_t ywidth = h1->GetRMS();
         delete h1;
         return ywidth;
-    },{"Hit_Y"})
-    .Define("zwidth",[](vector<double> Hit_Z){
-        TH1D *h1=new TH1D("h1","test",100,-0,1200);
-        for(auto i:Hit_Z)h1->Fill(i);
-        double zwidth = h1->GetRMS();
+    }, {"Hit_Y"})
+    .Define("zwidth", [] (vector<Double_t> Hit_Z)
+    {
+        TH1D* h1 = new TH1D("h1", "", 100, 0, 1200);
+        for (Double_t i : Hit_Z)
+            h1->Fill(i);
+        Double_t zwidth = h1->GetRMS();
         delete h1;
         return zwidth;
-    },{"Hit_Z"})
-    .Define("Edep",[](vector<double> Hit_Energy){
-        double sum=0.;
-        for(auto i:Hit_Energy)sum+=i;
+    }, {"Hit_Z"})
+    .Define("Edep", [] (vector<Double_t> Hit_Energy)
+    {
+        Double_t sum = 0.0;
+        for (Double_t i : Hit_Energy)
+            sum += i;
         return sum;
-    },{"Hit_Energy"})
-	.Define("layer_hitcell",[](vector<int> CellID,vector<double> Hit_Energy)
+    }, {"Hit_Energy"})
+	.Define("layer_hitcell", [] (vector<Int_t> CellID, vector<Double_t> Hit_Energy)
 	{
-		vector<int> layer_HitCell(nlayer);
-		for(int i=0;i<CellID.size();i++)
+		vector<Int_t> layer_HitCell(nlayer);
+		for(Int_t i = 0; i < CellID.size(); i++)
 		{
-			int layer = CellID.at(i)/100000;
-			if(Hit_Energy.at(i)<0.1)continue;
+			Int_t layer = CellID.at(i) / 100000;
+			if (Hit_Energy.at(i) < 0.1)
+                continue;
 			layer_HitCell.at(layer)++;
 		}
 		return layer_HitCell;
-	},{"CellID","Hit_Energy"})
-	.Define("layer_rms",[](vector<double> Hit_X,vector<double> Hit_Y,vector<int> CellID,vector<double> Hit_Energy)->vector<double>
+	}, {"CellID", "Hit_Energy"})
+	.Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> CellID, vector<Double_t> Hit_Energy)->vector<Double_t>
 	{
-		vector<double> layer_rms(nlayer);
+		vector<Double_t> layer_rms(nlayer);
 		vector<TH2D*> hvec;
-		for(int i=0;i<nlayer;i++)hvec.emplace_back(new TH2D("h"+TString(to_string(i))+"_rms","Layer RMS",100,-400,400,100,-400,400));
-		for(int i=0;i<Hit_X.size();i++)
+		for (Int_t i = 0; i < nlayer; i++)
+            hvec.emplace_back(new TH2D("h" + TString(to_string(i)) + "_rms", "Layer RMS", 100, -400, 400, 100, -400, 400));
+		for (Int_t i = 0; i < Hit_X.size(); i++)
 		{
-			int layer = CellID.at(i)/100000;
-			hvec.at(layer)->Fill(Hit_X.at(i),Hit_Y.at(i),Hit_Energy.at(i));
+            Int_t layer = CellID.at(i) / 100000;
+            hvec.at(layer)->Fill(Hit_X.at(i), Hit_Y.at(i), Hit_Energy.at(i));
 		}
-		for(int i=0;i<hvec.size();i++)
+		for (Int_t i = 0; i < hvec.size(); i++)
 		{
-			if(hvec.at(i)->GetEntries()<4)
-			{
+			if (hvec.at(i)->GetEntries() < 4)
 				layer_rms.at(i) = 0.;
-			}
 			else
-			{
 				layer_rms.at(i) = hvec.at(i)->GetRMS();
-			}
 			delete hvec.at(i);
 		}
 		vector<TH2D*>().swap(hvec);
 		return layer_rms;
-	},{"Hit_X","Hit_Y","CellID","Hit_Energy"})
-	.Define("shower_start",[](vector<int> layer_hitcell,vector<double> layer_rms)
+	}, {"Hit_X", "Hit_Y", "CellID", "Hit_Energy"})
+	.Define("shower_start", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms)
 	{
-		int shower_start=nlayer+2;
-		for(int i=0;i<layer_hitcell.size()-3;i++)
+		Int_t shower_start = nlayer + 2;
+		for (Int_t i = 0; i < layer_hitcell.size() - 3; i++)
 		{
-			if(layer_hitcell.at(i)>=4 && layer_rms.at(i)<50. && layer_hitcell.at(i+1)>=4 && layer_hitcell.at(i+2)>=4 && layer_hitcell.at(i+3)>=4)
+			if (layer_hitcell.at(i) >= 4 && layer_rms.at(i) < 50.0 && layer_hitcell.at(i + 1) >= 4 && layer_hitcell.at(i + 2) >= 4 && layer_hitcell.at(i + 3) >= 4)
 			{
 				shower_start = i;
 				break;
 			}
 		}
 		return shower_start;
-	},{"layer_hitcell","layer_rms"})
+	}, {"layer_hitcell", "layer_rms"})
 	.Define("shower_end", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms, Int_t shower_start)
 	{
 		Int_t shower_end = nlayer + 2;
@@ -132,165 +137,160 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             return radius;
         }
     }, {"Hit_X", "Hit_Y", "Hit_Z", "shower_start", "shower_end"})
-	.Define("layer_xwidth",[](vector<double> Hit_X,vector<int> Hit_PSDID)
+	.Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Int_t> Hit_PSDID)
 	{
-		vector<double> layer_xwidth(nlayer);
+		vector<Double_t> layer_xwidth(nlayer);
 		vector<TH1D*> h;
-		for(int l=0;l<nlayer;l++)
+		for (Int_t l = 0; l < nlayer; l++)
+			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
+		for (Int_t i = 0; i < Hit_PSDID.size(); i++)
 		{
-			h.emplace_back(new TH1D(TString("h")+TString(to_string(l)),"test",100,-400,400));
-		}
-		for(int i=0;i<Hit_PSDID.size();i++)
-		{
-			int layer = Hit_PSDID.at(i)/100000;
+			Int_t layer = Hit_PSDID.at(i) / 100000;
 			h.at(layer)->Fill(Hit_X.at(i));
 		}
-		for(int i=0;i<h.size();i++)
+		for (Int_t i = 0; i < h.size(); i++)
 		{
 			layer_xwidth.at(i) = h.at(i)->GetRMS();
 			delete h.at(i);
 		}
 		vector<TH1D*>().swap(h);
 		return layer_xwidth;
-	},{"Hit_X","CellID"})
-	.Define("layer_ywidth",[](vector<double> Hit_Y,vector<int> Hit_PSDID)
+	}, {"Hit_X", "CellID"})
+	.Define("layer_ywidth", [] (vector<Double_t> Hit_Y, vector<Int_t> Hit_PSDID)
 	{
-		vector<double> layer_ywidth(nlayer);
+		vector<Double_t> layer_ywidth(nlayer);
 		vector<TH1D*> h;
-		for(int l=0;l<nlayer;l++)
+		for (Int_t l = 0; l < nlayer; l++)
+			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
+		for (Int_t i = 0; i < Hit_PSDID.size(); i++)
 		{
-			h.emplace_back(new TH1D(TString("h")+TString(to_string(l)),"test",100,-400,400));
-		}
-		for(int i=0;i<Hit_PSDID.size();i++)
-		{
-			int layer = Hit_PSDID.at(i)/100000;
+			Int_t layer = Hit_PSDID.at(i) / 100000;
 			h.at(layer)->Fill(Hit_Y.at(i));
 		}
-		for(int i=0;i<h.size();i++)
+		for (Int_t i = 0; i < h.size(); i++)
 		{
 			layer_ywidth.at(i) = h.at(i)->GetRMS();
 			delete h.at(i);
 		}
 		vector<TH1D*>().swap(h);
 		return layer_ywidth;
-	},{"Hit_Y","CellID"})
-	.Define("shower_layer",[](vector<int> Hit_PSDID,vector<double> layer_xwidth,vector<double> layer_ywidth)
+	}, {"Hit_Y", "CellID"})
+	.Define("shower_layer", [] (vector<Int_t> Hit_PSDID, vector<Double_t> layer_xwidth, vector<Double_t> layer_ywidth)
 	{
-		double shower_layer=0;
-		for(int i=0;i<nlayer;i++)
+		Double_t shower_layer = 0;
+		for (Int_t i = 0; i < nlayer; i++)
 		{
-			if(layer_xwidth.at(i)>60 && layer_ywidth.at(i)>60)
-			{
+			if (layer_xwidth.at(i) > 60 && layer_ywidth.at(i) > 60)
 				shower_layer++;
-			}
 		}
 		return shower_layer;
-	},{"CellID","layer_xwidth","layer_ywidth"})
-	.Define("hit_layer",[](vector<int> Hit_PSDID)
+	}, {"CellID", "layer_xwidth", "layer_ywidth"})
+	.Define("hit_layer", [] (vector<Int_t> Hit_PSDID)
 	{
-		double hit_layer=0;
-		unordered_map<int,int> map_layer_hit;
-		for(auto i:Hit_PSDID)
+		Double_t hit_layer = 0;
+		unordered_map<Int_t, Int_t> map_layer_hit;
+		for (Int_t i : Hit_PSDID)
 		{
-			int layer = i/100000;
+			Int_t layer = i / 100000;
 			map_layer_hit[layer]++;
 		}
-		for(int i=0;i<nlayer;i++)
+		for (Int_t i = 0; i < nlayer; i++)
 		{
-			if(map_layer_hit.count(i)>0)hit_layer++;
+			if (map_layer_hit.count(i) > 0)
+                hit_layer++;
 		}
 		return hit_layer;
-	},{"CellID"})
-	.Define("shower_layer_ratio","shower_layer/hit_layer")
-	.Define("shower_density",[](vector<int> CellID,vector<double> Hit_Energy)
+	}, {"CellID"})
+	.Define("shower_layer_ratio", "shower_layer / hit_layer")
+	.Define("shower_density", [] (vector<Int_t> CellID, vector<Double_t> Hit_Energy)
 	{
-		double shower_density=0.;
-		unordered_map<int,int> map_CellID;
-		for(auto i:CellID)
-		{
+		Double_t shower_density = 0.0;
+		unordered_map<Int_t, Int_t> map_CellID;
+		for (Int_t i : CellID)
 			map_CellID[i] = 1;
-		}
-		for(int i=0;i<CellID.size();i++)
+		for(Int_t i = 0; i < CellID.size(); i++)
 		{
-			if(Hit_Energy.at(i)<0.1)continue;
-			int layer = CellID.at(i)/100000;
-			int x = (CellID.at(i)%10000)/100;
-			int y = (CellID.at(i)%100);
-			for(int _l=layer-1;_l<=layer+1;_l++)
+			if (Hit_Energy.at(i) < 0.1)
+                continue;
+			Int_t layer = CellID.at(i) / 100000;
+			Int_t x = (CellID.at(i) % 10000) / 100;
+			Int_t y = CellID.at(i) % 100;
+			for (Int_t _l = layer - 1; _l <= layer+1; _l++)
 			{
-				for(int _x=x-1;_x<=x+1;_x++)
+				for (Int_t _x = x-1; _x <= x + 1; _x++)
 				{
-					for(int _y=y-1;_y<=y+1;_y++)
+					for (Int_t _y = y-1; _y <= y+1; _y++)
 					{
-						int _id=_l*10000+_x*100+_y;
+						Int_t _id = _l * 10000 + _x * 100 + _y;
 						shower_density += map_CellID[_id];
 					}
 				}
 			}
 		}
-		shower_density/=CellID.size();
+		shower_density /= CellID.size();
 		return shower_density;
-	},{"CellID","Hit_Energy"})
-	.Define("shower_length",[](vector<double> layer_rms,int shower_start)
+	}, {"CellID", "Hit_Energy"})
+	.Define("shower_length", [] (vector<Double_t> layer_rms, Int_t shower_start)
 	{
-		double shower_length=0.;
-		double startz = 300. + 1.5 + shower_start * thick;
-		int max_layer =0;
-		double max_rms=0.;
-		for(int i=0;i<layer_rms.size();i++)
+		Double_t shower_length = 0.0;
+		Double_t startz = 300.0 + 1.5 + shower_start * thick;
+		Int_t max_layer = 0;
+		Double_t max_rms = 0.0;
+		for (Int_t i = 0; i < layer_rms.size(); i++)
 		{
-			if(layer_rms.at(i)>max_rms)
+			if (layer_rms.at(i) > max_rms)
 			{
-				max_layer=i;
-				max_rms=layer_rms.at(i);
+				max_layer = i;
+				max_rms = layer_rms.at(i);
 			}
 		}
-		//auto maxPosition = max_element(layer_rms.begin()+shower_start, layer_rms.end());
-		//int max_layer= maxPosition - layer_rms.begin();
-		shower_length = (max_layer-shower_start)*thick;
-		if(shower_start==nlayer+2)shower_length=0.;
+		//auto maxPosition = max_element(layer_rms.begin() + shower_start, layer_rms.end());
+		//Int_t max_layer = maxPosition - layer_rms.begin();
+		shower_length = (max_layer - shower_start) * thick;
+		if (shower_start == nlayer + 2)
+            shower_length = 0.0;
 		return shower_length;
-	},{"layer_rms","shower_start"})
-	.Define("hclx",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
+	}, {"layer_rms", "shower_start"})
+	.Define("hclx", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
-		vector<double> hclx;
-		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
+		vector<Double_t> hclx;
+		HTTool *httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		hclx = httool->GetHclX();
 		delete httool;
 		return hclx;
-	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
-	.Define("hcly",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
+	.Define("hcly", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
-		vector<double> hcly;
-		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
+		vector<Double_t> hcly;
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		hcly = httool->GetHclY();
 		delete httool;
 		return hcly;
-	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
-	.Define("hclz",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
+	.Define("hclz", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
-		vector<double> hclz;
-		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
+		vector<Double_t> hclz;
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		hclz = httool->GetHclZ();
 		delete httool;
 		return hclz;
-	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
-	.Define("hcle",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
+	.Define("hcle", [](vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
-		vector<double> hcle;
-		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
+		vector<Double_t> hcle;
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		hcle = httool->GetHclE();
 		delete httool;
 		return hcle;
-	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
-	.Define("ntrack",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
+	.Define("ntrack", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
-		int ntrack=0;
-		HTTool *httool = new HTTool(CellID,Hit_X,Hit_Y,Hit_Z,Hit_Energy);
+		Int_t ntrack = 0;
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		ntrack = httool->GetNtrack();
 		delete httool;
 		return ntrack;
-	},{"CellID","Hit_X","Hit_Y","Hit_Z","Hit_Energy"})
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
     /*
     .Define("time_mean_hit", [] (vector<Double_t> hit_time)
     {
