@@ -20,6 +20,7 @@
 #include "TMVA/Tools.h"
 #include "TMVA/TMVAGui.h"
 #include "HTTool.h"
+//#include "Fit3D.h"
 #include "TMVA/TMVAGui.h"
 #include "TMVA/Reader.h"
 #include "TMVA/MethodCuts.h"

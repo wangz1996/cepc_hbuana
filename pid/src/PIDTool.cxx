@@ -50,7 +50,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		vector<int> layer_HitCell(nlayer);
 		for(int i=0;i<CellID.size();i++)
 		{
-			int layer = CellID.at(i)/10000;
+			int layer = CellID.at(i)/100000;
 			if(Hit_Energy.at(i)<0.1)continue;
 			layer_HitCell.at(layer)++;
 		}
@@ -63,7 +63,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		for(int i=0;i<nlayer;i++)hvec.emplace_back(new TH2D("h"+TString(to_string(i))+"_rms","Layer RMS",100,-400,400,100,-400,400));
 		for(int i=0;i<Hit_X.size();i++)
 		{
-			int layer = CellID.at(i)/10000;
+			int layer = CellID.at(i)/100000;
 			hvec.at(layer)->Fill(Hit_X.at(i),Hit_Y.at(i),Hit_Energy.at(i));
 		}
 		for(int i=0;i<hvec.size();i++)
@@ -118,7 +118,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         const Int_t n = hit_x.size();
         for (Int_t i = 0; i < n; i++)
         {
-            if (hit_z.at(i) / thick >= beginning && hit_z.at(i) / thick < ending)
+            if ((hit_z.at(i) - 1.5) / thick >= beginning && (hit_z.at(i) - 1.5) / thick < ending)
             {
                 hits++;
                 d2 += TMath::Power(hit_x.at(i), 2) + TMath::Power(hit_y.at(i), 2);
@@ -142,7 +142,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		for(int i=0;i<Hit_PSDID.size();i++)
 		{
-			int layer = Hit_PSDID.at(i)/10000;
+			int layer = Hit_PSDID.at(i)/100000;
 			h.at(layer)->Fill(Hit_X.at(i));
 		}
 		for(int i=0;i<h.size();i++)
@@ -163,7 +163,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		for(int i=0;i<Hit_PSDID.size();i++)
 		{
-			int layer = Hit_PSDID.at(i)/10000;
+			int layer = Hit_PSDID.at(i)/100000;
 			h.at(layer)->Fill(Hit_Y.at(i));
 		}
 		for(int i=0;i<h.size();i++)
@@ -192,7 +192,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		unordered_map<int,int> map_layer_hit;
 		for(auto i:Hit_PSDID)
 		{
-			int layer = i/10000;
+			int layer = i/100000;
 			map_layer_hit[layer]++;
 		}
 		for(int i=0;i<nlayer;i++)
@@ -213,7 +213,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		for(int i=0;i<CellID.size();i++)
 		{
 			if(Hit_Energy.at(i)<0.1)continue;
-			int layer = CellID.at(i)/10000;
+			int layer = CellID.at(i)/100000;
 			int x = (CellID.at(i)%10000)/100;
 			int y = (CellID.at(i)%100);
 			for(int _l=layer-1;_l<=layer+1;_l++)
