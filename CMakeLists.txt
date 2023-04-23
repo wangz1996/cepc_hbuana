@@ -35,10 +35,8 @@ add_library(HBase STATIC src/HBase.cxx)
 
 #add executable
 add_executable(hbuana src/main.cxx src/DatManager.cxx src/PedestalManager.cxx src/DacManager.cxx src/config.cxx)
-add_executable(jetclus src/jet.cxx src/JetClusterManager.cxx)
 #link libraries
 target_link_libraries(hbuana ${ROOT_LIBRARIES} yaml-cpp HBase)
-target_link_libraries(jetclus ${ROOT_LIBRARIES})
 
 
 #Add scripts to make setup.sh to include hbuana into environment
