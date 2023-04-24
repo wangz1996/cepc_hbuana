@@ -248,12 +248,12 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		unordered_map<Int_t, Int_t> map_CellID;
 		for (Int_t i : CellID)
 			map_CellID[i] = 1;
-		for(Int_t i = 0; i < CellID.size(); i++)
+		for (Int_t i = 0; i < CellID.size(); i++)
 		{
 			if (Hit_Energy.at(i) < 0.1)
                 continue;
-			Int_t layer = CellID.at(i) / 10000;
-			Int_t x = (CellID.at(i) % 10000) / 100;
+			Int_t layer = CellID.at(i) / 100000;
+			Int_t x = (CellID.at(i) % 100000) / 100;
 			Int_t y = CellID.at(i) % 100;
 			for (Int_t il = layer - 1; il <= layer + 1; il++)
 			{
@@ -261,7 +261,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 				{
 					for (Int_t iy = y - 1; iy <= y + 1; iy++)
 					{
-						Int_t tmp = il * 10000 + ix * 100 + iy;
+						Int_t tmp = il * 100000 + ix * 100 + iy;
 						shower_density += map_CellID[tmp];
 					}
 				}
