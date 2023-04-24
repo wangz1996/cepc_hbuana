@@ -1,5 +1,40 @@
 #include "PIDTool.h"
 
+Int_t NHScaleV2(RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z, Int_t const& RatioX, Int_t const& RatioY, Int_t const& RatioZ)
+{
+    Int_t ReScaledNH = 0;
+    Int_t tmpI = 0;
+    Int_t tmpJ = 0;
+    Int_t tmpK = 0;
+    Double_t tmpEn = 0;
+    Int_t NewCellID0 = 0;
+    const Int_t NumHit = pos_x.size();
+
+    std::map<Double_t, Double_t> testIDtoEnergy;
+
+    for (Int_t i = 0; i < NumHit; i++)
+    {
+        Double_t x = pos_x.at(i);
+        Double_t y = pos_y.at(i);
+        Double_t z = pos_z.at(i);
+
+        tmpI = (Int_t(x / 40.2996) + Int_t(fabs(x) / x)) / RatioX;
+        tmpJ = (Int_t(y / 39.9874) + Int_t(fabs(y) / y)) / RatioY;
+        tmpK = Int_t(z / 26) / RatioZ;
+        tmpEn = 1;
+
+        NewCellID0 = (tmpK << 24) + (tmpJ << 12) + tmpI;
+
+        if (testIDtoEnergy.find(NewCellID0) == testIDtoEnergy.end())
+            testIDtoEnergy[NewCellID0] = tmpEn;
+        else
+            testIDtoEnergy[NewCellID0] += tmpEn;
+    }
+
+    ReScaledNH = testIDtoEnergy.size();
+    return ReScaledNH;
+}
+
 PIDTool::PIDTool()
 {
 }
@@ -10,14 +45,19 @@ PIDTool::~PIDTool()
 
 int PIDTool::GenNtuple(const string &file,const string &tree)
 {
+    const Int_t nlayer = 40;
+    const Int_t thick = 26;     // Thickness of each layer, in mm
 	//ROOT::EnableImplicitMT();
 	ROOT::DisableImplicitMT();
 	ROOT::RDataFrame *dm=new ROOT::RDataFrame(tree,file);
 	string outname = file;
     outname = outname.substr(outname.find_last_of('/')+1);
 	outname = "pid_"+outname;
-	auto fout = dm
-	->Define("xwidth",[](vector<double> Hit_X)
+	auto fout = dm->Define("nhits", [] (vector<Double_t> Hit_X)
+    {
+        return (Int_t)Hit_X.size();
+    }, {"Hit_X"})
+    .Define("xwidth",[](vector<double> Hit_X)
     {
         TH1D *h1=new TH1D("h1","test",100,-400,400);
         for(auto i:Hit_X)h1->Fill(i);
@@ -44,9 +84,13 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         for(auto i:Hit_Energy)sum+=i;
         return sum;
     },{"Hit_Energy"})
+    .Define("Emean", [] (Double_t Edep, Int_t nhits)
+    {
+        return Edep / nhits;
+    }, {"Edep", "nhits"})
 	.Define("layer_hitcell",[](vector<int> CellID,vector<double> Hit_Energy)
 	{
-		vector<int> layer_HitCell(40);
+		vector<int> layer_HitCell(nlayer);
 		for(int i=0;i<CellID.size();i++)
 		{
 			int layer = CellID.at(i)/100000;
@@ -57,9 +101,9 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 	},{"CellID","Hit_Energy"})
 	.Define("layer_rms",[](vector<double> Hit_X,vector<double> Hit_Y,vector<int> CellID,vector<double> Hit_Energy)->vector<double>
 	{
-		vector<double> layer_rms(40);
+		vector<double> layer_rms(nlayer);
 		vector<TH2D*> hvec;
-		for(int i=0;i<40;i++)hvec.emplace_back(new TH2D("h"+TString(to_string(i))+"_rms","Layer RMS",100,-400,400,100,-400,400));
+		for(int i=0;i<nlayer;i++)hvec.emplace_back(new TH2D("h"+TString(to_string(i))+"_rms","Layer RMS",100,-400,400,100,-400,400));
 		for(int i=0;i<Hit_X.size();i++)
 		{
 			int layer = CellID.at(i)/100000;
@@ -82,7 +126,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 	},{"Hit_X","Hit_Y","CellID","Hit_Energy"})
 	.Define("shower_start",[](vector<int> layer_hitcell,vector<double> layer_rms)
 	{
-		int shower_start=42;
+		int shower_start=nlayer + 2;
 		for(int i=0;i<layer_hitcell.size()-3;i++)
 		{
 			if(layer_hitcell.at(i)>=4 && layer_rms.at(i)<50. && layer_hitcell.at(i+1)>=4 && layer_hitcell.at(i+2)>=4 && layer_hitcell.at(i+3)>=4)
@@ -93,25 +137,28 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		return shower_start;
 	},{"layer_hitcell","layer_rms"})
-	.Define("shower_end",[](vector<int> layer_hitcell,vector<double> layer_rms,int shower_start)
+	.Define("shower_end", [] (vector<int> layer_hitcell, vector<double> layer_rms, int shower_start)
 	{
-		int shower_end=42;
-		if(shower_start==42)return shower_end;
-		for(int i=shower_start;i<layer_hitcell.size()-3;i++)
+		int shower_end = nlayer + 2;
+		if (shower_start == nlayer + 2)
+            return shower_end;
+		for (int i = shower_start; i < layer_hitcell.size() - 3; i++)
 		{
-			if(layer_hitcell.at(i)<4 && layer_hitcell.at(i+1)<4)
+			if (layer_hitcell.at(i) < 4 && layer_hitcell.at(i + 1) < 4)
 			{
 				shower_end = i;
 				break;
 			}
 		}
+        if (shower_end == nlayer + 2)
+            shower_end = nlayer;
 		return shower_end;
-	},{"layer_hitcell","layer_rms","shower_start"})
+	},{"layer_hitcell", "layer_rms", "shower_start"})
 	.Define("layer_xwidth",[](vector<double> Hit_X,vector<int> Hit_PSDID)
 	{
-		vector<double> layer_xwidth(40);
+		vector<double> layer_xwidth(nlayer);
 		vector<TH1D*> h;
-		for(int l=0;l<40;l++)
+		for(int l=0;l<nlayer;l++)
 		{
 			h.emplace_back(new TH1D(TString("h")+TString(to_string(l)),"test",100,-400,400));
 		}
@@ -130,9 +177,9 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 	},{"Hit_X","CellID"})
 	.Define("layer_ywidth",[](vector<double> Hit_Y,vector<int> Hit_PSDID)
 	{
-		vector<double> layer_ywidth(40);
+		vector<double> layer_ywidth(nlayer);
 		vector<TH1D*> h;
-		for(int l=0;l<40;l++)
+		for(int l=0;l<nlayer;l++)
 		{
 			h.emplace_back(new TH1D(TString("h")+TString(to_string(l)),"test",100,-400,400));
 		}
@@ -152,7 +199,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 	.Define("shower_layer",[](vector<int> Hit_PSDID,vector<double> layer_xwidth,vector<double> layer_ywidth)
 	{
 		double shower_layer=0;
-		for(int i=0;i<40;i++)
+		for(int i=0;i<nlayer;i++)
 		{
 			if(layer_xwidth.at(i)>60 && layer_ywidth.at(i)>60)
 			{
@@ -170,61 +217,61 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 			int layer = i/100000;
 			map_layer_hit[layer]++;
 		}
-		for(int i=0;i<40;i++)
+		for(int i=0;i<nlayer;i++)
 		{
 			if(map_layer_hit.count(i)>0)hit_layer++;
 		}
 		return hit_layer;
 	},{"CellID"})
-	.Define("shower_layer_ratio","shower_layer/hit_layer")
+	.Define("shower_layer_ratio", "shower_layer / hit_layer")
 	.Define("shower_density",[](vector<int> CellID,vector<double> Hit_Energy,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z)
-	{
-		double shower_density=0.;
-		unordered_map<int,int> map_CellID;
-		double xend = -342.551;
-		double xgap = 40.2996;
-		double yend = -340.557;
-		double ygap = 39.9874;
-		for(int i=0;i<Hit_X.size();i++)
-		{
-			int ix = round((Hit_X.at(i)-xend)/xgap);
-        	int iy = round((Hit_Y.at(i)-yend)/ygap);
-			int layer = CellID.at(i)/100000;
-			int cellid = layer*10000+ix*100 + iy;
-			int memo = (CellID.at(i)%10000)/100;
-			if(memo!=0)continue;
-			map_CellID[cellid]=1;
-		}
-		int nhit = map_CellID.size();
-		for(auto i:map_CellID)
-		{
-			int layer = i.first/10000;
-			int x = (i.first%10000)/100;
-			int y = i.first%100;
-			for(int il=layer-1;il<=layer+1;il++)
-			{
-				if(il<0 || il>39)continue;
-				for(int ix=x-1;ix<=x+1;ix++)
-				{
-					if(ix<0 || ix>17)continue;
-					for(int iy=y-1;iy<=y+1;iy++)
-					{
-						if(iy<0 || iy>17)continue;
-						int tmp = il*10000+ix*100+iy;
-						if(map_CellID.count(tmp))shower_density++;
-						//if(1)shower_density++;
-					}
-				}
-			}
-		}
-		shower_density/=nhit;
-		//cout<<"DEBUG: "<<shower_density<<endl;
-		return shower_density;
-	},{"CellID","Hit_Energy","Hit_X","Hit_Y","Hit_Z"})
+    {
+        double shower_density=0.;
+        const Double_t xend = -342.551;
+        const Double_t xgap = 40.2996;
+        const Double_t yend = -340.557;
+        const Double_t ygap = 39.9874;
+        unordered_map<int,int> map_CellID;
+        for(int i=0;i<Hit_X.size();i++)
+        {
+            int ix = round((Hit_X.at(i)-xend)/xgap);
+            int iy = round((Hit_Y.at(i)-yend)/ygap);
+            int layer = CellID.at(i)/100000;
+            int cellid = layer*10000+ix*100 + iy;
+            int memo = (CellID.at(i)%10000)/100;
+            if(memo!=0)continue;
+            map_CellID[cellid]=1;
+        }
+        int nhit = map_CellID.size();
+        for(auto i:map_CellID)
+        {
+        	int layer = i.first/10000;
+        	int x = (i.first%10000)/100;
+        	int y = i.first%100;
+        	for(int il=layer-1;il<=layer+1;il++)
+        	{
+        		if(il<0 || il>39)continue;
+        		for(int ix=x-1;ix<=x+1;ix++)
+        		{
+        			if(ix<0 || ix>17)continue;
+        			for(int iy=y-1;iy<=y+1;iy++)
+        			{
+        				if(iy<0 || iy>17)continue;
+        				int tmp = il*10000+ix*100+iy;
+        				if(map_CellID.count(tmp))shower_density++;
+        				//if(1)shower_density++;
+        			}
+        		}
+        	}
+        }
+        shower_density/=nhit;
+        //cout<<"DEBUG: "<<shower_density<<endl;
+        return shower_density;
+    },{"CellID","Hit_Energy","Hit_X","Hit_Y","Hit_Z"})
 	.Define("shower_length",[](vector<double> layer_rms,int shower_start,int shower_end)
 	{
 		double shower_length=0.;
-		double startz = 300. + 1.5+shower_start*25.;
+		double startz = 300. + 1.5+shower_start*thick;
 		int max_layer =0;
 		double max_rms=0.;
 		//for(int i=0;i<layer_rms.size();i++)
@@ -237,8 +284,8 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		//}
 		//auto maxPosition = max_element(layer_rms.begin()+shower_start, layer_rms.end());
 		//int max_layer= maxPosition - layer_rms.begin();
-		shower_length = (shower_end-shower_start)*25.;
-		if(shower_start==42)shower_length=0.;
+		shower_length = (shower_end-shower_start)*thick;
+		if(shower_start==nlayer + 2)shower_length=0.;
 		return shower_length;
 	},{"layer_rms","shower_start","shower_end"})
     .Define("shower_radius", [] (vector<Double_t> hit_x, vector<Double_t> hit_y, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
@@ -248,7 +295,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         const Int_t n = hit_x.size();
         for (Int_t i = 0; i < n; i++)
         {
-            if (hit_z.at(i) / 25.0 >= beginning && hit_z.at(i) / 25.0 < ending)
+            if (hit_z.at(i) / thick >= beginning && hit_z.at(i) / thick < ending)
             {
                 hits++;
                 d2 += TMath::Power(hit_x.at(i), 2) + TMath::Power(hit_y.at(i), 2);
@@ -262,6 +309,22 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             return radius;
         }
     }, {"Hit_X", "Hit_Y", "Hit_Z", "shower_start", "shower_end"})
+    .Define("FD_2D", [] (RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z)
+    {
+        Double_t fd = 0;
+        const Int_t num = 10;
+        const Int_t nhit = pos_x.size();
+        Int_t NResizeHit[num] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        Int_t scale[num] = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 20 };
+        for (Int_t i = 0; i < num; i++)
+        {
+            NResizeHit[i] = NHScaleV2(pos_x, pos_y, pos_z, scale[i], scale[i], 1);
+            fd += 0.1 * TMath::Log((Double_t)nhit / NResizeHit[i]) / TMath::Log((Double_t)scale[i]);
+        }
+        if (pos_x.size() == 0)
+            fd = -1;
+        return fd;
+    }, {"Hit_X", "Hit_Y", "Hit_Z"})
 	.Define("hclx",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
 	{
 		vector<double> hclx;
