@@ -6,6 +6,7 @@
 #include <iostream>
 #include <iomanip>
 #include <ROOT/RDataFrame.hxx>
+#include <ROOT/RVec.hxx>
 #include <algorithm>
 #include <cstdlib>
 #include "TH2D.h"
@@ -26,6 +27,8 @@
 #include "TMVA/MethodCuts.h"
 #include "TMVA/TMVAMultiClassGui.h"
 using namespace std;
+using namespace ROOT;
+
 class PIDTool
 {
 public:

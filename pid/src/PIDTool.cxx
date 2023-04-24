@@ -1,5 +1,40 @@
 #include "PIDTool.h"
 
+Int_t NHScaleV2(RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z, Int_t const& RatioX, Int_t const& RatioY, Int_t const& RatioZ)
+{
+    Int_t ReScaledNH = 0;
+    Int_t tmpI = 0;
+    Int_t tmpJ = 0;
+    Int_t tmpK = 0;
+    Double_t tmpEn = 0;
+    Int_t NewCellID0 = 0;
+    const Int_t NumHit = pos_x.size();
+
+    std::map<Double_t, Double_t> testIDtoEnergy;
+
+    for (Int_t i = 0; i < NumHit; i++)
+    {
+        Double_t x = pos_x.at(i);
+        Double_t y = pos_y.at(i);
+        Double_t z = pos_z.at(i);
+
+        tmpI = (Int_t (x / 40) + Int_t(TMath::Abs(x) / x)) / RatioX;
+        tmpJ = (Int_t (y / 40) + Int_t(TMath::Abs(y) / y)) / RatioY;
+        tmpK = (Int_t)(z / 25) / RatioZ;
+        tmpEn = 1;
+
+        NewCellID0 = (tmpK << 24) + (tmpJ << 12) + tmpI;
+
+        if (testIDtoEnergy.find(NewCellID0) == testIDtoEnergy.end())
+            testIDtoEnergy[NewCellID0] = tmpEn;
+        else
+            testIDtoEnergy[NewCellID0] += tmpEn;
+    }
+
+    ReScaledNH = testIDtoEnergy.size();
+    return ReScaledNH;
+}
+
 PIDTool::PIDTool()
 {
 }
@@ -18,7 +53,11 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 	string outname = file;
     outname = outname.substr(outname.find_last_of('/')+1);
 	outname = "pid_"+outname;
-	auto fout = dm->Define("xwidth", [] (vector<Double_t> Hit_X)
+	auto fout = dm->Define("nhits", [] (vector<Double_t> Hit_X)
+    {
+        return (Int_t)Hit_X.size();
+    }, {"Hit_X"})
+    .Define("xwidth", [] (vector<Double_t> Hit_X)
     {
         TH1D* h1 = new TH1D("h1", "", 100, -400, 400);
         for (Double_t i : Hit_X)
@@ -52,6 +91,10 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             sum += i;
         return sum;
     }, {"Hit_Energy"})
+    .Define("Emean", [] (Double_t Edep, Int_t nhits)
+    {
+        return Edep / nhits;
+    }, {"Edep", "nhits"})
 	.Define("layer_hitcell", [] (vector<Int_t> CellID, vector<Double_t> Hit_Energy)
 	{
 		vector<Int_t> layer_HitCell(nlayer);
@@ -131,11 +174,8 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         }
         if (hits == 0)
             return 0.0;
-        else
-        {
-            Double_t radius = TMath::Sqrt(d2 / hits);
-            return radius;
-        }
+        Double_t radius = TMath::Sqrt(d2 / hits);
+        return radius;
     }, {"Hit_X", "Hit_Y", "Hit_Z", "shower_start", "shower_end"})
 	.Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Int_t> Hit_PSDID)
 	{
@@ -212,17 +252,17 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		{
 			if (Hit_Energy.at(i) < 0.1)
                 continue;
-			Int_t layer = CellID.at(i) / 100000;
+			Int_t layer = CellID.at(i) / 10000;
 			Int_t x = (CellID.at(i) % 10000) / 100;
 			Int_t y = CellID.at(i) % 100;
-			for (Int_t _l = layer - 1; _l <= layer+1; _l++)
+			for (Int_t il = layer - 1; il <= layer + 1; il++)
 			{
-				for (Int_t _x = x-1; _x <= x + 1; _x++)
+				for (Int_t ix = x - 1; ix <= x + 1; ix++)
 				{
-					for (Int_t _y = y-1; _y <= y+1; _y++)
+					for (Int_t iy = y - 1; iy <= y + 1; iy++)
 					{
-						Int_t _id = _l * 10000 + _x * 100 + _y;
-						shower_density += map_CellID[_id];
+						Int_t tmp = il * 10000 + ix * 100 + iy;
+						shower_density += map_CellID[tmp];
 					}
 				}
 			}
@@ -251,10 +291,26 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             shower_length = 0.0;
 		return shower_length;
 	}, {"layer_rms", "shower_start"})
+    .Define("FD_2D", [] (RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z)
+    {
+        Double_t fd = 0;
+        const Int_t num = 10;
+        const Int_t nhit = pos_x.size();
+        Int_t NResizeHit[num] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        Int_t scale[num] = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 20 };
+        for (Int_t i = 0; i < num; i++)
+        {
+            NResizeHit[i] = NHScaleV2(pos_x, pos_y, pos_z, scale[i], scale[i], 1);
+            fd += 0.1 * TMath::Log((Double_t)nhit / NResizeHit[i]) / TMath::Log((Double_t)scale[i]);
+        }
+        if (pos_x.size() == 0)
+            fd = -1;
+        return fd;
+    }, {"Hit_X", "Hit_Y", "Hit_Z"})
 	.Define("hclx", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
 		vector<Double_t> hclx;
-		HTTool *httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		hclx = httool->GetHclX();
 		delete httool;
 		return hclx;
@@ -353,101 +409,100 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 
 int PIDTool::TrainBDT()
 {
-   TMVA::Tools::Instance();
+    TMVA::Tools::Instance();
 
-	unordered_map<TTree*,TString> tsignal;
-	for(auto i:signal)
+	unordered_map<TTree*, TString> tsignal;
+	for (auto i : signal)
 	{
-		TFile *f=TFile::Open(i.first.first,"READ");
-		TTree *t=(TTree*)f->Get(i.first.second);
-		tsignal.insert(pair<TTree*,TString>(t,i.second));
+		TFile* f = TFile::Open(i.first.first, "READ");
+		TTree* t = (TTree*)f->Get(i.first.second);
+		tsignal.insert(pair<TTree*, TString>(t, i.second));
 	}
-   // Create a ROOT output file where TMVA will store ntuples, histograms, etc.
-   TString outfileName( "TMVAMulticlass.root" );
-   TFile* outputFile = TFile::Open( outfileName, "RECREATE" );
+    // Create a ROOT output file where TMVA will store ntuples, histograms, etc.
+    TString outfileName( "TMVAMulticlass.root" );
+    TFile* outputFile = TFile::Open( outfileName, "RECREATE" );
 
-   TMVA::Factory *factory = new TMVA::Factory( "TMVAMulticlass", outputFile,
+    TMVA::Factory* factory = new TMVA::Factory( "TMVAMulticlass", outputFile,
                                                "!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=multiclass" );
 
-   TMVA::DataLoader *dataloader=new TMVA::DataLoader("dataset");
-	for(auto i:var)
+    TMVA::DataLoader* dataloader=new TMVA::DataLoader("dataset");
+	for (auto i : var)
 	{
-		dataloader->AddVariable(i.first,i.second);
+		dataloader->AddVariable(i.first, i.second);
 	}
-   // You can add an arbitrary number of signal or background trees
-   for(auto i:tsignal)dataloader->AddTree(i.first,i.second);
-   dataloader->PrepareTrainingAndTestTree( "", "SplitMode=Random:NormMode=NumEvents:!V" );
+    // You can add an arbitrary number of signal or background trees
+    for (auto i : tsignal)
+        dataloader->AddTree(i.first, i.second);
+    dataloader->PrepareTrainingAndTestTree( "", "SplitMode=Random:NormMode=NumEvents:!V" );
 
 	factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=1000:BoostType=Grad:Shrinkage=0.10:UseBaggedBoost:BaggedSampleFraction=0.50:nCuts=20:MaxDepth=2");
-   // Now you can tell the factory to train, test, and evaluate the MVAs
-   //
-   // Train MVAs using the set of training events
-   factory->TrainAllMethods();
+    // Now you can tell the factory to train, test, and evaluate the MVAs
+    //
+    // Train MVAs using the set of training events
+    factory->TrainAllMethods();
 
-   // Evaluate all MVAs using the set of test events
-   factory->TestAllMethods();
+    // Evaluate all MVAs using the set of test events
+    factory->TestAllMethods();
 
-   // Evaluate and compare performance of all configured MVAs
-   factory->EvaluateAllMethods();
+    // Evaluate and compare performance of all configured MVAs
+    factory->EvaluateAllMethods();
 
-   // --------------------------------------------------------------
+    // --------------------------------------------------------------
 
-   // Save the output
-   outputFile->Close();
+    // Save the output
+    outputFile->Close();
 
-   std::cout << "==> Wrote root file: " << outputFile->GetName() << std::endl;
-   std::cout << "==> TMVAClassification is done!" << std::endl;
+    std::cout << "==> Wrote root file: " << outputFile->GetName() << std::endl;
+    std::cout << "==> TMVAClassification is done!" << std::endl;
 
-   delete factory;
-   delete dataloader;
-   // Launch the GUI for the root macros
-   //if (!gROOT->IsBatch()) TMVA::TMVAGui( outfileName );
+    delete factory;
+    delete dataloader;
+    // Launch the GUI for the root macros
+    //if (!gROOT->IsBatch()) TMVA::TMVAGui( outfileName );
 
-   return 0;
-	
+    return 0;	
 }
 
-int PIDTool::BDTNtuple(const string &fname,const string &tname)
+int PIDTool::BDTNtuple(const string& fname, const string& tname)
 {
 	ROOT::EnableImplicitMT();
 	string outname = fname;
-	outname = outname.substr(outname.find_last_of('/')+1);
-	outname = "bdt_"+outname;
+	outname = outname.substr(outname.find_last_of('/') + 1);
+	outname = "bdt_" + outname;
 	// This loads the library
 	TMVA::Tools::Instance();
 
 	// Default MVA methods to be trained + tested
-	std::map<std::string,int> Use;
+	std::map<std::string, int> Use;
 
 	// Cut optimisation
-    Use["BDTG"]            = 1;
+    Use["BDTG"] = 1;
 	std::cout << "==> Start TMVAMulticlassApplication" << std::endl;
-	TMVA::Reader *reader = new TMVA::Reader( "!Color:!Silent" );
-	Float_t        bdt_xwidth;
-	Float_t        bdt_ywidth;
-	Float_t        bdt_zwidth;
-	Float_t        bdt_Edep;
-	Float_t			bdt_shower_start;
-	Float_t        bdt_shower_layer_ratio;
-	Float_t        bdt_shower_density;
-	Float_t        bdt_shower_length;
-	Float_t		bdt_ntrack;
-	reader->AddVariable("Edep",&bdt_Edep);
-	reader->AddVariable("ntrack",&bdt_ntrack);
-	reader->AddVariable("shower_density",&bdt_shower_density);
-	reader->AddVariable("shower_layer_ratio",&bdt_shower_layer_ratio);
-	reader->AddVariable("shower_length",&bdt_shower_length);
-	reader->AddVariable("shower_start",&bdt_shower_start);
-	reader->AddVariable("xwidth",&bdt_xwidth);
-	reader->AddVariable("ywidth",&bdt_ywidth);
-	reader->AddVariable("zwidth",&bdt_zwidth);
+	TMVA::Reader* reader = new TMVA::Reader( "!Color:!Silent" );
+	Float_t bdt_xwidth;
+	Float_t bdt_ywidth;
+	Float_t bdt_zwidth;
+	Float_t bdt_Edep;
+	Float_t	bdt_shower_start;
+	Float_t bdt_shower_layer_ratio;
+	Float_t bdt_shower_density;
+	Float_t bdt_shower_length;
+	Float_t	bdt_ntrack;
+	reader->AddVariable("Edep",               &bdt_Edep);
+	reader->AddVariable("ntrack",             &bdt_ntrack);
+	reader->AddVariable("shower_density",     &bdt_shower_density);
+	reader->AddVariable("shower_layer_ratio", &bdt_shower_layer_ratio);
+	reader->AddVariable("shower_length",      &bdt_shower_length);
+	reader->AddVariable("shower_start",       &bdt_shower_start);
+	reader->AddVariable("xwidth",             &bdt_xwidth);
+	reader->AddVariable("ywidth",             &bdt_ywidth);
+	reader->AddVariable("zwidth",             &bdt_zwidth);
 
-	reader->BookMVA("BDTG method",TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
-	cout<<"Booked"<<endl;
-	vector<string> rdf_input={"Edep","ntrack","shower_density","shower_layer_ratio","shower_length","shower_start","xwidth","ywidth","zwidth"};
-	ROOT::RDataFrame df(tname,fname);
-	auto bdtout = df
-	.Define("BDT_pi_plus",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
+	cout << "Booked" << endl;
+	vector<string> rdf_input = { "Edep", "ntrack", "shower_density", "shower_layer_ratio", "shower_length", "shower_start", "xwidth", "ywidth", "zwidth" };
+	ROOT::RDataFrame df(tname, fname);
+	auto bdtout = df.Define("BDT_pi_plus", [&](double e, int n, double d, double lr, double l, int s, double x, double y, double z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -459,8 +514,8 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 		bdt_shower_length = l;
 		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
-	},rdf_input)
-	.Define("BDT_e_plus",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	}, rdf_input)
+	.Define("BDT_e_plus", [&](double e, int n, double d, double lr, double l, int s, double x, double y, double z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -472,8 +527,8 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 		bdt_shower_length = l;
 		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
-	},rdf_input)
-	.Define("BDT_mu_plus",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	}, rdf_input)
+	.Define("BDT_mu_plus", [&](double e, int n, double d, double lr, double l, int s, double x, double y, double z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -485,8 +540,8 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 		bdt_shower_length = l;
 		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[3];
-	},rdf_input)
-	.Define("bdt_proton",[&](double e,int n,double d,double lr,double l,int s,double x,double y,double z)
+	}, rdf_input)
+	.Define("bdt_proton", [&](double e, int n, double d, double lr, double l, int s, double x, double y, double z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -498,7 +553,7 @@ int PIDTool::BDTNtuple(const string &fname,const string &tname)
 		bdt_shower_length = l;
 		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
-	},rdf_input)
-	.Snapshot(tname,outname);
+	}, rdf_input)
+	.Snapshot(tname, outname);
 	return 1;
 }
