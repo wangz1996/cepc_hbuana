@@ -43,12 +43,12 @@ void HBase::ReadTree(const TString &fname,const TString &tname)
 	cout<<"Reading tree "<<fname<<endl;
 	fin = TFile::Open(TString(fname),"READ");
 	tin = (TTree*)fin->Get(TString(tname));
-	tin->SetBranchAddress("cycleID", &cycleID);
-	tin->SetBranchAddress("triggerID", &triggerID);
-	tin->SetBranchAddress("cellIDs", &cellIDs);
-	tin->SetBranchAddress("BCIDs", &BCIDs);
-	tin->SetBranchAddress("hitTags", &hitTags);
-	tin->SetBranchAddress("gainTags", &gainTags);
-	tin->SetBranchAddress("charges", &charges);
-	tin->SetBranchAddress("times", &times);
+	tin->SetBranchAddress("CycleID", &cycleID);
+	tin->SetBranchAddress("TriggerID", &triggerID);
+	tin->SetBranchAddress("CellID", &cellIDs);
+	tin->SetBranchAddress("BCID", &BCIDs);
+	tin->SetBranchAddress("HitTag", &hitTags);
+	tin->SetBranchAddress("GainTag", &gainTags);
+	tin->SetBranchAddress("LG_Charge", &charges);
+	tin->SetBranchAddress("HG_Charge", &times);
 }

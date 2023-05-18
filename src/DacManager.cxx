@@ -291,15 +291,15 @@ void DacManager::ReadTree(TString fname)
 	//cout<<"Reading tree "<<fname<<endl;
 	fin = TFile::Open(TString(fname),"READ");
 	//fin = std::make_shared<TFile>(TString(fname),"READ");
-	tin = (TTree*)fin->Get("Cosmic_Event");
-	tin->SetBranchAddress("cycleID", &cycleID);
-	tin->SetBranchAddress("triggerID", &triggerID);
-	tin->SetBranchAddress("cellIDs", &cellIDs);
-	tin->SetBranchAddress("BCIDs", &BCIDs);
-	tin->SetBranchAddress("hitTags", &hitTags);
-	tin->SetBranchAddress("gainTags", &gainTags);
-	tin->SetBranchAddress("charges", &charges);
-	tin->SetBranchAddress("times", &times);
+	tin = (TTree*)fin->Get("Raw_Hit");
+	tin->SetBranchAddress("CycleID", &cycleID);
+	tin->SetBranchAddress("TriggerID", &triggerID);
+	tin->SetBranchAddress("CellID", &cellIDs);
+	tin->SetBranchAddress("BCID", &BCIDs);
+	tin->SetBranchAddress("HitTag", &hitTags);
+	tin->SetBranchAddress("GainTag", &gainTags);
+	tin->SetBranchAddress("LG_Charge", &charges);
+	tin->SetBranchAddress("HG_Charge", &times);
 	//cout<<"Read tree done!"<<fname<<endl;
 }
 void DacManager::SaveCanvas(TH2D* h,TString name)

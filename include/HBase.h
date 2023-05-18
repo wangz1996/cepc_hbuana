@@ -30,8 +30,10 @@ protected:
 	TTree *tin;	//Read Tree from fin
 	TFile *fout;	//Create output files
 	TTree *tout;	//Create output trees
-	Double_t        cycleID;
-	Double_t        triggerID;
+	//Double_t        cycleID;
+	//Double_t        triggerID;
+	Int_t        cycleID;
+	Int_t        triggerID;
 	vector<int>     *cellIDs;
 	vector<int>     *BCIDs;
 	vector<int>     *hitTags;

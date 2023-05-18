@@ -23,8 +23,8 @@ public:
 	TTree	*tout;
 	TFile	*fout;
 	
-	Double_t        cycleID;
-	Double_t        triggerID;
+	Int_t        cycleID;
+	Int_t        triggerID;
 	vector<int>     *cellIDs;
 	vector<int>     *BCIDs;
 	vector<int>     *hitTags;

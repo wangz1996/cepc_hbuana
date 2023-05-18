@@ -116,7 +116,7 @@ int PedestalManager::AnaPedestal(const std::string &_list,const int &sel_hittag)
 				}
 				//this->ReadTree(TString(tmp.c_str()),"Cosmic_Event");
 				TFile *_fin = TFile::Open(TString(tmp.c_str()),"READ");
-				TTree *_tin = (TTree*)_fin->Get("Cosmic_Event");
+				TTree *_tin = (TTree*)_fin->Get("Raw_Hit");
 				Double_t        _cycleID;
 				Double_t        _triggerID; 
 				vector<int>     *_cellIDs;
@@ -192,7 +192,7 @@ int PedestalManager::AnaPedestal(const std::string &_list,const int &sel_hittag)
 				skipchannel = skipchannel.substr(0,skipchannel.find_last_of('_'));
 				dac_chn = stoi(skipchannel);
 				}
-				this->ReadTree(TString(tmp.c_str()),"Cosmic_Event");
+				this->ReadTree(TString(tmp.c_str()),"Raw_Hit");
 				int Nentry = tin->GetEntries();
 				for(int ientry=0;ientry<Nentry;ientry++)
 				{
