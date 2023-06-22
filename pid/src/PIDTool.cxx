@@ -84,39 +84,53 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         delete h1;
         return zwidth;
     }, {"Hit_Z"})
-    .Define("Edep", [] (vector<Double_t> Hit_Energy)
+    .Define("Edep", [] (vector<Double_t> Digi_Hit_Energy)
     {
         Double_t sum = 0.0;
-        for (Double_t i : Hit_Energy)
+        for (Double_t i : Digi_Hit_Energy)
             sum += i;
         return sum;
-    }, {"Hit_Energy"})
+    }, {"Digi_Hit_Energy"})
     .Define("Emean", [] (Double_t Edep, Int_t nhits)
     {
         return Edep / nhits;
     }, {"Edep", "nhits"})
-	.Define("layer_hitcell", [] (vector<Int_t> CellID, vector<Double_t> Hit_Energy)
+    .Define("layer_hitcell", [] (vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
+    {
+        vector<Int_t> layer_HitCell(nlayer);
+        for (Int_t i = 0; i < Hit_Z.size(); i++)
+        {
+            Int_t layer = Hit_Z.at(i) / 30;
+            if (Digi_Hit_Energy.at(i) < 0.1)
+                continue;
+            layer_HitCell.at(layer)++;
+        }
+        return layer_HitCell;
+    }, {"Hit_Z", "Digi_Hit_Energy"})
+    /*
+	.Define("layer_hitcell", [] (vector<Int_t> CellID, vector<Double_t> Digi_Hit_Energy)
 	{
 		vector<Int_t> layer_HitCell(nlayer);
 		for(Int_t i = 0; i < CellID.size(); i++)
 		{
 			Int_t layer = CellID.at(i) / 100000;
-			if (Hit_Energy.at(i) < 0.1)
+			if (Digi_Hit_Energy.at(i) < 0.1)
                 continue;
 			layer_HitCell.at(layer)++;
 		}
 		return layer_HitCell;
-	}, {"CellID", "Hit_Energy"})
-	.Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> CellID, vector<Double_t> Hit_Energy)->vector<Double_t>
-	{
+	}, {"CellID", "Digi_Hit_Energy"})
+    */
+    .Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)->vector<Double_t>
+    {
 		vector<Double_t> layer_rms(nlayer);
 		vector<TH2D*> hvec;
 		for (Int_t i = 0; i < nlayer; i++)
             hvec.emplace_back(new TH2D("h" + TString(to_string(i)) + "_rms", "Layer RMS", 100, -400, 400, 100, -400, 400));
 		for (Int_t i = 0; i < Hit_X.size(); i++)
 		{
-            Int_t layer = CellID.at(i) / 100000;
-            hvec.at(layer)->Fill(Hit_X.at(i), Hit_Y.at(i), Hit_Energy.at(i));
+            Int_t layer = Hit_Z.at(i) / 30;
+            hvec.at(layer)->Fill(Hit_X.at(i), Hit_Y.at(i), Digi_Hit_Energy.at(i));
 		}
 		for (Int_t i = 0; i < hvec.size(); i++)
 		{
@@ -128,7 +142,31 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		vector<TH2D*>().swap(hvec);
 		return layer_rms;
-	}, {"Hit_X", "Hit_Y", "CellID", "Hit_Energy"})
+    }, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
+    /*
+	.Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> CellID, vector<Double_t> Digi_Hit_Energy)->vector<Double_t>
+	{
+		vector<Double_t> layer_rms(nlayer);
+		vector<TH2D*> hvec;
+		for (Int_t i = 0; i < nlayer; i++)
+            hvec.emplace_back(new TH2D("h" + TString(to_string(i)) + "_rms", "Layer RMS", 100, -400, 400, 100, -400, 400));
+		for (Int_t i = 0; i < Hit_X.size(); i++)
+		{
+            Int_t layer = CellID.at(i) / 100000;
+            hvec.at(layer)->Fill(Hit_X.at(i), Hit_Y.at(i), Digi_Hit_Energy.at(i));
+		}
+		for (Int_t i = 0; i < hvec.size(); i++)
+		{
+			if (hvec.at(i)->GetEntries() < 4)
+				layer_rms.at(i) = 0.;
+			else
+				layer_rms.at(i) = hvec.at(i)->GetRMS();
+			delete hvec.at(i);
+		}
+		vector<TH2D*>().swap(hvec);
+		return layer_rms;
+	}, {"Hit_X", "Hit_Y", "CellID", "Digi_Hit_Energy"})
+    */
 	.Define("shower_start", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms)
 	{
 		Int_t shower_start = nlayer + 2;
@@ -159,7 +197,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             shower_end = nlayer;
 		return shower_end;
 	}, {"layer_hitcell", "layer_rms", "shower_start"})
-    .Define("radius_shower", [] (vector<Double_t> hit_x, vector<Double_t> hit_y, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
+    .Define("shower_radius", [] (vector<Double_t> hit_x, vector<Double_t> hit_y, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
     {
         LongDouble_t d2 = 0;
         Int_t hits = 0;
@@ -177,6 +215,26 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         Double_t radius = TMath::Sqrt(d2 / hits);
         return radius;
     }, {"Hit_X", "Hit_Y", "Hit_Z", "shower_start", "shower_end"})
+    .Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Z)
+    {
+		vector<Double_t> layer_xwidth(nlayer);
+		vector<TH1D*> h;
+		for (Int_t l = 0; l < nlayer; l++)
+			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
+		for (Int_t i = 0; i < Hit_Z.size(); i++)
+		{
+			Int_t layer = Hit_Z.at(i) / 30;
+			h.at(layer)->Fill(Hit_X.at(i));
+		}
+		for (Int_t i = 0; i < h.size(); i++)
+		{
+			layer_xwidth.at(i) = h.at(i)->GetRMS();
+			delete h.at(i);
+		}
+		vector<TH1D*>().swap(h);
+		return layer_xwidth;
+    }, {"Hit_X", "Hit_Z"})
+    /*
 	.Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Int_t> Hit_PSDID)
 	{
 		vector<Double_t> layer_xwidth(nlayer);
@@ -196,6 +254,27 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		vector<TH1D*>().swap(h);
 		return layer_xwidth;
 	}, {"Hit_X", "CellID"})
+    */
+    .Define("layer_ywidth", [] (vector<Double_t> Hit_Y, vector<Double_t> Hit_Z)
+    {
+		vector<Double_t> layer_ywidth(nlayer);
+		vector<TH1D*> h;
+		for (Int_t l = 0; l < nlayer; l++)
+			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
+		for (Int_t i = 0; i < Hit_Z.size(); i++)
+		{
+			Int_t layer = Hit_Z.at(i) / 30;
+			h.at(layer)->Fill(Hit_Y.at(i));
+		}
+		for (Int_t i = 0; i < h.size(); i++)
+		{
+			layer_ywidth.at(i) = h.at(i)->GetRMS();
+			delete h.at(i);
+		}
+		vector<TH1D*>().swap(h);
+		return layer_ywidth;
+    }, {"Hit_Y", "Hit_Z"})
+    /*
 	.Define("layer_ywidth", [] (vector<Double_t> Hit_Y, vector<Int_t> Hit_PSDID)
 	{
 		vector<Double_t> layer_ywidth(nlayer);
@@ -215,6 +294,18 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		vector<TH1D*>().swap(h);
 		return layer_ywidth;
 	}, {"Hit_Y", "CellID"})
+    */
+	.Define("shower_layer", [] (vector<Double_t> layer_xwidth, vector<Double_t> layer_ywidth)
+	{
+		Double_t shower_layer = 0;
+		for (Int_t i = 0; i < nlayer; i++)
+		{
+			if (layer_xwidth.at(i) > 60 && layer_ywidth.at(i) > 60)
+				shower_layer++;
+		}
+		return shower_layer;
+	}, {"layer_xwidth", "layer_ywidth"})
+    /*
 	.Define("shower_layer", [] (vector<Int_t> Hit_PSDID, vector<Double_t> layer_xwidth, vector<Double_t> layer_ywidth)
 	{
 		Double_t shower_layer = 0;
@@ -225,6 +316,24 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		return shower_layer;
 	}, {"CellID", "layer_xwidth", "layer_ywidth"})
+    */
+	.Define("hit_layer", [] (vector<Double_t> Hit_Z)
+	{
+		Double_t hit_layer = 0;
+		unordered_map<Int_t, Int_t> map_layer_hit;
+		for (Double_t i : Hit_Z)
+		{
+			Int_t layer = i / 30;
+			map_layer_hit[layer]++;
+		}
+		for (Int_t i = 0; i < nlayer; i++)
+		{
+			if (map_layer_hit.count(i) > 0)
+                hit_layer++;
+		}
+		return hit_layer;
+	}, {"Hit_Z"})
+    /*
 	.Define("hit_layer", [] (vector<Int_t> Hit_PSDID)
 	{
 		Double_t hit_layer = 0;
@@ -241,8 +350,44 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		return hit_layer;
 	}, {"CellID"})
+    */
 	.Define("shower_layer_ratio", "shower_layer / hit_layer")
-	.Define("shower_density", [] (vector<Int_t> CellID, vector<Double_t> Hit_Energy)
+	.Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
+	{
+		Double_t shower_density = 0.0;
+		unordered_map<Int_t, Int_t> map_CellID;
+        for (Int_t j = 0; j < Hit_X.size(); j++)
+        {
+			Int_t x = Hit_X.at(j) / 40;
+			Int_t y = Hit_Y.at(j) / 40;
+			Int_t z = Hit_Z.at(j) / 30;
+            Int_t index = z * 100000 + x * 100 + y;
+            map_CellID[index] = 1;
+        }
+		for (Int_t i = 0; i < Hit_X.size(); i++)
+		{
+			if (Digi_Hit_Energy.at(i) < 0.1)
+                continue;
+			Int_t x = Hit_X.at(i) / 40;
+			Int_t y = Hit_Y.at(i) / 40;
+			Int_t z = Hit_Z.at(i) / 30;
+			for (Int_t iz = z - 1; iz <= z + 1; iz++)
+			{
+				for (Int_t ix = x - 1; ix <= x + 1; ix++)
+				{
+					for (Int_t iy = y - 1; iy <= y + 1; iy++)
+					{
+						Int_t tmp = iz * 100000 + ix * 100 + iy;
+						shower_density += map_CellID[tmp];
+					}
+				}
+			}
+		}
+		shower_density /= Hit_X.size();
+		return shower_density;
+	}, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
+    /*
+	.Define("shower_density", [] (vector<Int_t> CellID, vector<Double_t> Digi_Hit_Energy)
 	{
 		Double_t shower_density = 0.0;
 		unordered_map<Int_t, Int_t> map_CellID;
@@ -250,7 +395,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 			map_CellID[i] = 1;
 		for (Int_t i = 0; i < CellID.size(); i++)
 		{
-			if (Hit_Energy.at(i) < 0.1)
+			if (Digi_Hit_Energy.at(i) < 0.1)
                 continue;
 			Int_t layer = CellID.at(i) / 100000;
 			Int_t x = (CellID.at(i) % 100000) / 100;
@@ -269,7 +414,8 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		shower_density /= CellID.size();
 		return shower_density;
-	}, {"CellID", "Hit_Energy"})
+	}, {"CellID", "Digi_Hit_Energy"})
+    */
 	.Define("shower_length", [] (vector<Double_t> layer_rms, Int_t shower_start)
 	{
 		Double_t shower_length = 0.0;
@@ -307,47 +453,47 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             fd = -1;
         return fd;
     }, {"Hit_X", "Hit_Y", "Hit_Z"})
-	.Define("hclx", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
+    /*
+	.Define("hclx", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
 	{
 		vector<Double_t> hclx;
-		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
 		hclx = httool->GetHclX();
 		delete httool;
 		return hclx;
-	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
-	.Define("hcly", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
+	.Define("hcly", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
 	{
 		vector<Double_t> hcly;
-		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
 		hcly = httool->GetHclY();
 		delete httool;
 		return hcly;
-	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
-	.Define("hclz", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
+	.Define("hclz", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
 	{
 		vector<Double_t> hclz;
-		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
 		hclz = httool->GetHclZ();
 		delete httool;
 		return hclz;
-	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
-	.Define("hcle", [](vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
+	.Define("hcle", [](vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
 	{
 		vector<Double_t> hcle;
-		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
 		hcle = httool->GetHclE();
 		delete httool;
 		return hcle;
-	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
-	.Define("ntrack", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
+	.Define("ntrack", [] (vector<Int_t> CellID, vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
 	{
 		Int_t ntrack = 0;
-		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Hit_Energy);
+		HTTool* httool = new HTTool(CellID, Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
 		ntrack = httool->GetNtrack();
 		delete httool;
 		return ntrack;
-	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
-    /*
+	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
     .Define("time_mean_hit", [] (vector<Double_t> hit_time)
     {
         Double_t tot = 0;
@@ -453,7 +599,7 @@ int PIDTool::TrainBDT()
     outputFile->Close();
 
     std::cout << "==> Wrote root file: " << outputFile->GetName() << std::endl;
-    std::cout << "==> TMVAClassification is done!" << std::endl;
+    std::cout << "==> TMVAClassification finished!" << std::endl;
 
     delete factory;
     delete dataloader;

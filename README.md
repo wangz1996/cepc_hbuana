@@ -12,20 +12,20 @@ Set DAT-ROOT "on-off" to "True";
 Give a dat file list at "file-list";  
 Specify a output directory at "output-dir";  
 
-### Pedestal mode (You want to analyze pedestals):
+### Pedestal mode (You want to analyse pedestals):
 Set Pedestal "on-off" to "True";  
-Turn Cosmic/DAC "on-off" to "True" if you want to analyze with Cosmic/DAC files;  
+Turn Cosmic/DAC "on-off" to "True" if you want to analyse with Cosmic/DAC files;  
 Give a root file list at "file-list";  
 Specify a name at "output-file";  
 
 ### Calibration mode (You want to do calibration of high gain over low gain):
 Set Calibration "on-off" to "True";  
-Turn Cosmic/DAC "on-off" to "True" if you want to analyze with Cosmic/DAC files;  
+Turn Cosmic/DAC "on-off" to "True" if you want to analyse with Cosmic/DAC files;  
 Give a root file list at "file-list";  
 Specify a pedestal file at "ped-file";  
 
 ## Usage (Detailed)
-To run the programme, just simply type this:
+To run the program, just simply type this:
 ```
 	hbuana -c config.yaml
 ```
@@ -36,7 +36,7 @@ If you don't have config.yaml in your current workspace, you can do the followin
 ```
 
 
-#### Starting from now is the instruction on how one can compile the programme
+#### Starting from now is the instruction on how one can compile the program
 ## Prerequisite
 ### Environment
 To compile the program, we are using the following environments which could be easily set up in lxslc7.ihep.cn:
@@ -77,4 +77,3 @@ To clone the project you need to:
 ```
 
 Every time you want to use the hbuana, you need to source build/setup.sh to include hbuana into your PATH
-
