@@ -18,9 +18,9 @@ Int_t NHScaleV2(RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<D
         Double_t y = pos_y.at(i);
         Double_t z = pos_z.at(i);
 
-        tmpI = (Int_t (x / 40) + Int_t(TMath::Abs(x) / x)) / RatioX;
-        tmpJ = (Int_t (y / 40) + Int_t(TMath::Abs(y) / y)) / RatioY;
-        tmpK = (Int_t)(z / 25) / RatioZ;
+        tmpI = (Int_t ((x + 342.55) / 40.15) + Int_t(TMath::Abs(x) / x)) / RatioX;
+        tmpJ = (Int_t ((y + 342.55) / 40.15) + Int_t(TMath::Abs(y) / y)) / RatioY;
+        tmpK = (Int_t)(z / 30) / RatioZ;
         tmpEn = 1;
 
         NewCellID0 = (tmpK << 24) + (tmpJ << 12) + tmpI;
@@ -46,17 +46,24 @@ PIDTool::~PIDTool()
 int PIDTool::GenNtuple(const string &file,const string &tree)
 {
     const Int_t nlayer = 40;
-    const Int_t thick = 25;
+    const Int_t thick = 30;
 	//ROOT::EnableImplicitMT();
 	ROOT::DisableImplicitMT();
-	ROOT::RDataFrame *dm=new ROOT::RDataFrame(tree,file);
+	ROOT::RDataFrame *dm = new ROOT::RDataFrame(tree, file);
 	string outname = file;
-    outname = outname.substr(outname.find_last_of('/')+1);
-	outname = "pid_"+outname;
+    outname = outname.substr(outname.find_last_of('/') + 1);
+	outname = "pid_" + outname;
 	auto fout = dm->Define("nhits", [] (vector<Double_t> Hit_X)
     {
-        return (Int_t)Hit_X.size();
+        return (Int_t) Hit_X.size();
     }, {"Hit_X"})
+    .Define("layer", [] (vector<Double_t> Hit_Z)
+    {
+        vector<Int_t> layer;
+        for (Int_t i = 0; i < Hit_Z.size(); i++)
+            layer.emplace_back((Int_t) Hit_Z.at(i) / thick);
+        return layer;
+    }, {"Hit_Z"})
     .Define("xwidth", [] (vector<Double_t> Hit_X)
     {
         TH1D* h1 = new TH1D("h1", "", 100, -400, 400);
@@ -95,33 +102,19 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     {
         return Edep / nhits;
     }, {"Edep", "nhits"})
-    .Define("layer_hitcell", [] (vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
+    .Define("layer_hitcell", [] (vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)
     {
         vector<Int_t> layer_HitCell(nlayer);
-        for (Int_t i = 0; i < Hit_Z.size(); i++)
+        for (Int_t i = 0; i < layer.size(); i++)
         {
-            Int_t layer = Hit_Z.at(i) / 30;
+            Int_t ilayer = layer.at(i);
             if (Digi_Hit_Energy.at(i) < 0.1)
                 continue;
-            layer_HitCell.at(layer)++;
+            layer_HitCell.at(ilayer)++;
         }
         return layer_HitCell;
-    }, {"Hit_Z", "Digi_Hit_Energy"})
-    /*
-	.Define("layer_hitcell", [] (vector<Int_t> CellID, vector<Double_t> Digi_Hit_Energy)
-	{
-		vector<Int_t> layer_HitCell(nlayer);
-		for(Int_t i = 0; i < CellID.size(); i++)
-		{
-			Int_t layer = CellID.at(i) / 100000;
-			if (Digi_Hit_Energy.at(i) < 0.1)
-                continue;
-			layer_HitCell.at(layer)++;
-		}
-		return layer_HitCell;
-	}, {"CellID", "Digi_Hit_Energy"})
-    */
-    .Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)->vector<Double_t>
+    }, {"layer", "Digi_Hit_Energy"})
+    .Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)->vector<Double_t>
     {
 		vector<Double_t> layer_rms(nlayer);
 		vector<TH2D*> hvec;
@@ -129,8 +122,8 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             hvec.emplace_back(new TH2D("h" + TString(to_string(i)) + "_rms", "Layer RMS", 100, -400, 400, 100, -400, 400));
 		for (Int_t i = 0; i < Hit_X.size(); i++)
 		{
-            Int_t layer = Hit_Z.at(i) / 30;
-            hvec.at(layer)->Fill(Hit_X.at(i), Hit_Y.at(i), Digi_Hit_Energy.at(i));
+            Int_t ilayer = layer.at(i);
+            hvec.at(ilayer)->Fill(Hit_X.at(i), Hit_Y.at(i), Digi_Hit_Energy.at(i));
 		}
 		for (Int_t i = 0; i < hvec.size(); i++)
 		{
@@ -142,31 +135,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		vector<TH2D*>().swap(hvec);
 		return layer_rms;
-    }, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
-    /*
-	.Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> CellID, vector<Double_t> Digi_Hit_Energy)->vector<Double_t>
-	{
-		vector<Double_t> layer_rms(nlayer);
-		vector<TH2D*> hvec;
-		for (Int_t i = 0; i < nlayer; i++)
-            hvec.emplace_back(new TH2D("h" + TString(to_string(i)) + "_rms", "Layer RMS", 100, -400, 400, 100, -400, 400));
-		for (Int_t i = 0; i < Hit_X.size(); i++)
-		{
-            Int_t layer = CellID.at(i) / 100000;
-            hvec.at(layer)->Fill(Hit_X.at(i), Hit_Y.at(i), Digi_Hit_Energy.at(i));
-		}
-		for (Int_t i = 0; i < hvec.size(); i++)
-		{
-			if (hvec.at(i)->GetEntries() < 4)
-				layer_rms.at(i) = 0.;
-			else
-				layer_rms.at(i) = hvec.at(i)->GetRMS();
-			delete hvec.at(i);
-		}
-		vector<TH2D*>().swap(hvec);
-		return layer_rms;
-	}, {"Hit_X", "Hit_Y", "CellID", "Digi_Hit_Energy"})
-    */
+    }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy"})
 	.Define("shower_start", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms)
 	{
 		Int_t shower_start = nlayer + 2;
@@ -197,34 +166,34 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             shower_end = nlayer;
 		return shower_end;
 	}, {"layer_hitcell", "layer_rms", "shower_start"})
-    .Define("shower_radius", [] (vector<Double_t> hit_x, vector<Double_t> hit_y, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
+    .Define("shower_radius", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, Int_t beginning, Int_t ending)
     {
         LongDouble_t d2 = 0;
         Int_t hits = 0;
-        const Int_t n = hit_x.size();
+        const Int_t n = Hit_X.size();
         for (Int_t i = 0; i < n; i++)
         {
-            if ((hit_z.at(i) - 1.5) / thick >= beginning && (hit_z.at(i) - 1.5) / thick < ending)
+            if (layer.at(i) >= beginning && layer.at(i) < ending)
             {
                 hits++;
-                d2 += TMath::Power(hit_x.at(i), 2) + TMath::Power(hit_y.at(i), 2);
+                d2 += TMath::Power(Hit_X.at(i), 2) + TMath::Power(Hit_Y.at(i), 2);
             }
         }
         if (hits == 0)
             return 0.0;
         Double_t radius = TMath::Sqrt(d2 / hits);
         return radius;
-    }, {"Hit_X", "Hit_Y", "Hit_Z", "shower_start", "shower_end"})
-    .Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Z)
+    }, {"Hit_X", "Hit_Y", "layer", "shower_start", "shower_end"})
+    .Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Int_t> layer)
     {
 		vector<Double_t> layer_xwidth(nlayer);
 		vector<TH1D*> h;
 		for (Int_t l = 0; l < nlayer; l++)
 			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
-		for (Int_t i = 0; i < Hit_Z.size(); i++)
+		for (Int_t i = 0; i < layer.size(); i++)
 		{
-			Int_t layer = Hit_Z.at(i) / 30;
-			h.at(layer)->Fill(Hit_X.at(i));
+			Int_t ilayer = layer.at(i);
+			h.at(ilayer)->Fill(Hit_X.at(i));
 		}
 		for (Int_t i = 0; i < h.size(); i++)
 		{
@@ -233,38 +202,17 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		vector<TH1D*>().swap(h);
 		return layer_xwidth;
-    }, {"Hit_X", "Hit_Z"})
-    /*
-	.Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Int_t> Hit_PSDID)
-	{
-		vector<Double_t> layer_xwidth(nlayer);
-		vector<TH1D*> h;
-		for (Int_t l = 0; l < nlayer; l++)
-			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
-		for (Int_t i = 0; i < Hit_PSDID.size(); i++)
-		{
-			Int_t layer = Hit_PSDID.at(i) / 100000;
-			h.at(layer)->Fill(Hit_X.at(i));
-		}
-		for (Int_t i = 0; i < h.size(); i++)
-		{
-			layer_xwidth.at(i) = h.at(i)->GetRMS();
-			delete h.at(i);
-		}
-		vector<TH1D*>().swap(h);
-		return layer_xwidth;
-	}, {"Hit_X", "CellID"})
-    */
-    .Define("layer_ywidth", [] (vector<Double_t> Hit_Y, vector<Double_t> Hit_Z)
+    }, {"Hit_X", "layer"})
+    .Define("layer_ywidth", [] (vector<Double_t> Hit_Y, vector<Int_t> layer)
     {
 		vector<Double_t> layer_ywidth(nlayer);
 		vector<TH1D*> h;
 		for (Int_t l = 0; l < nlayer; l++)
 			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
-		for (Int_t i = 0; i < Hit_Z.size(); i++)
+		for (Int_t i = 0; i < layer.size(); i++)
 		{
-			Int_t layer = Hit_Z.at(i) / 30;
-			h.at(layer)->Fill(Hit_Y.at(i));
+			Int_t ilayer = layer.at(i);
+			h.at(ilayer)->Fill(Hit_Y.at(i));
 		}
 		for (Int_t i = 0; i < h.size(); i++)
 		{
@@ -273,28 +221,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		vector<TH1D*>().swap(h);
 		return layer_ywidth;
-    }, {"Hit_Y", "Hit_Z"})
-    /*
-	.Define("layer_ywidth", [] (vector<Double_t> Hit_Y, vector<Int_t> Hit_PSDID)
-	{
-		vector<Double_t> layer_ywidth(nlayer);
-		vector<TH1D*> h;
-		for (Int_t l = 0; l < nlayer; l++)
-			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
-		for (Int_t i = 0; i < Hit_PSDID.size(); i++)
-		{
-			Int_t layer = Hit_PSDID.at(i) / 100000;
-			h.at(layer)->Fill(Hit_Y.at(i));
-		}
-		for (Int_t i = 0; i < h.size(); i++)
-		{
-			layer_ywidth.at(i) = h.at(i)->GetRMS();
-			delete h.at(i);
-		}
-		vector<TH1D*>().swap(h);
-		return layer_ywidth;
-	}, {"Hit_Y", "CellID"})
-    */
+    }, {"Hit_Y", "layer"})
 	.Define("shower_layer", [] (vector<Double_t> layer_xwidth, vector<Double_t> layer_ywidth)
 	{
 		Double_t shower_layer = 0;
@@ -305,62 +232,29 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		return shower_layer;
 	}, {"layer_xwidth", "layer_ywidth"})
-    /*
-	.Define("shower_layer", [] (vector<Int_t> Hit_PSDID, vector<Double_t> layer_xwidth, vector<Double_t> layer_ywidth)
-	{
-		Double_t shower_layer = 0;
-		for (Int_t i = 0; i < nlayer; i++)
-		{
-			if (layer_xwidth.at(i) > 60 && layer_ywidth.at(i) > 60)
-				shower_layer++;
-		}
-		return shower_layer;
-	}, {"CellID", "layer_xwidth", "layer_ywidth"})
-    */
-	.Define("hit_layer", [] (vector<Double_t> Hit_Z)
+	.Define("hit_layer", [] (vector<Int_t> layer)
 	{
 		Double_t hit_layer = 0;
 		unordered_map<Int_t, Int_t> map_layer_hit;
-		for (Double_t i : Hit_Z)
-		{
-			Int_t layer = i / 30;
-			map_layer_hit[layer]++;
-		}
+		for (Double_t i : layer)
+			map_layer_hit[i]++;
 		for (Int_t i = 0; i < nlayer; i++)
 		{
 			if (map_layer_hit.count(i) > 0)
                 hit_layer++;
 		}
 		return hit_layer;
-	}, {"Hit_Z"})
-    /*
-	.Define("hit_layer", [] (vector<Int_t> Hit_PSDID)
-	{
-		Double_t hit_layer = 0;
-		unordered_map<Int_t, Int_t> map_layer_hit;
-		for (Int_t i : Hit_PSDID)
-		{
-			Int_t layer = i / 100000;
-			map_layer_hit[layer]++;
-		}
-		for (Int_t i = 0; i < nlayer; i++)
-		{
-			if (map_layer_hit.count(i) > 0)
-                hit_layer++;
-		}
-		return hit_layer;
-	}, {"CellID"})
-    */
+	}, {"layer"})
 	.Define("shower_layer_ratio", "shower_layer / hit_layer")
-	.Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
+	.Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)
 	{
 		Double_t shower_density = 0.0;
 		unordered_map<Int_t, Int_t> map_CellID;
         for (Int_t j = 0; j < Hit_X.size(); j++)
         {
-			Int_t x = Hit_X.at(j) / 40;
-			Int_t y = Hit_Y.at(j) / 40;
-			Int_t z = Hit_Z.at(j) / 30;
+			Int_t x = (Hit_X.at(j) + 342.55) / 40.3;
+			Int_t y = (Hit_Y.at(j) + 342.55) / 40.3;
+			Int_t z = layer.at(j);
             Int_t index = z * 100000 + x * 100 + y;
             map_CellID[index] = 1;
         }
@@ -368,9 +262,9 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		{
 			if (Digi_Hit_Energy.at(i) < 0.1)
                 continue;
-			Int_t x = Hit_X.at(i) / 40;
-			Int_t y = Hit_Y.at(i) / 40;
-			Int_t z = Hit_Z.at(i) / 30;
+			Int_t x = (Hit_X.at(i) + 342.55) / 40.3;
+			Int_t y = (Hit_Y.at(i) + 342.55) / 40.3;
+			Int_t z = layer.at(i);
 			for (Int_t iz = z - 1; iz <= z + 1; iz++)
 			{
 				for (Int_t ix = x - 1; ix <= x + 1; ix++)
@@ -385,41 +279,11 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		shower_density /= Hit_X.size();
 		return shower_density;
-	}, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
-    /*
-	.Define("shower_density", [] (vector<Int_t> CellID, vector<Double_t> Digi_Hit_Energy)
-	{
-		Double_t shower_density = 0.0;
-		unordered_map<Int_t, Int_t> map_CellID;
-		for (Int_t i : CellID)
-			map_CellID[i] = 1;
-		for (Int_t i = 0; i < CellID.size(); i++)
-		{
-			if (Digi_Hit_Energy.at(i) < 0.1)
-                continue;
-			Int_t layer = CellID.at(i) / 100000;
-			Int_t x = (CellID.at(i) % 100000) / 100;
-			Int_t y = CellID.at(i) % 100;
-			for (Int_t il = layer - 1; il <= layer + 1; il++)
-			{
-				for (Int_t ix = x - 1; ix <= x + 1; ix++)
-				{
-					for (Int_t iy = y - 1; iy <= y + 1; iy++)
-					{
-						Int_t tmp = il * 100000 + ix * 100 + iy;
-						shower_density += map_CellID[tmp];
-					}
-				}
-			}
-		}
-		shower_density /= CellID.size();
-		return shower_density;
-	}, {"CellID", "Digi_Hit_Energy"})
-    */
+	}, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy"})
 	.Define("shower_length", [] (vector<Double_t> layer_rms, Int_t shower_start)
 	{
 		Double_t shower_length = 0.0;
-		Double_t startz = 300.0 + 1.5 + shower_start * thick;
+		Double_t startz = shower_start * thick;
 		Int_t max_layer = 0;
 		Double_t max_rms = 0.0;
 		for (Int_t i = 0; i < layer_rms.size(); i++)
@@ -494,6 +358,9 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		delete httool;
 		return ntrack;
 	}, {"CellID", "Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
+    */
+    // Below are time analyses (relevant data not stored)
+    /*
     .Define("time_mean_hit", [] (vector<Double_t> hit_time)
     {
         Double_t tot = 0;
@@ -510,14 +377,14 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             tot2 += i * i;
         return TMath::Sqrt(tot2 / hits);
     }, {"Hit_Time"})
-    .Define("time_mean_shower", [] (vector<Double_t> hit_time, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
+    .Define("time_mean_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending)
     {
         Double_t tot = 0;
         Int_t hits = 0;
         const Int_t n = hit_time.size();
         for (Int_t i = 0; i < n; i++)
         {
-            if (hit_z.at(i) / thick >= beginning && hit_z.at(i) / thick < ending)
+            if (layer.at(i) >= beginning && layer.at(i) < ending)
             {
                 hits++;
                 tot += hit_time.at(i), 2;
@@ -527,15 +394,15 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             return 0.0;
         else
             return tot / hits;
-    }, {"Hit_Time", "shower_start", "shower_end"})
-    .Define("time_rms_shower", [] (vector<Double_t> hit_time, vector<Double_t> hit_z, Int_t beginning, Int_t ending)
+    }, {"Hit_Time", "layer", "shower_start", "shower_end"})
+    .Define("time_rms_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending)
     {
         Double_t tot2 = 0;
         Int_t hits = 0;
         const Int_t n = hit_time.size();
         for (Int_t i = 0; i < n; i++)
         {
-            if (hit_z.at(i) / thick >= beginning && hit_z.at(i) / thick < ending)
+            if (layer.at(i) >= beginning && layer.at(i) < ending)
             {
                 hits++;
                 tot2 += TMath::Power(hit_time.at(i), 2);
@@ -545,15 +412,15 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             return 0.0;
         else
             return tot2 / hits;
-    }, {"Hit_Time", "shower_start", "shower_end"})
+    }, {"Hit_Time", "layer", "shower_start", "shower_end"})
     */
 	//.Range(1)
-    .Snapshot(tree,outname);
+    .Snapshot(tree, outname);
 	delete dm;
 	return 1;
 }
 
-int PIDTool::TrainBDT()
+Int_t PIDTool::TrainBDT()
 {
     TMVA::Tools::Instance();
 
@@ -571,18 +438,16 @@ int PIDTool::TrainBDT()
     TMVA::Factory* factory = new TMVA::Factory( "TMVAMulticlass", outputFile,
                                                "!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=multiclass" );
 
-    TMVA::DataLoader* dataloader=new TMVA::DataLoader("dataset");
+    TMVA::DataLoader* dataloader = new TMVA::DataLoader("dataset");
 	for (auto i : var)
-	{
 		dataloader->AddVariable(i.first, i.second);
-	}
     // You can add an arbitrary number of signal or background trees
     for (auto i : tsignal)
         dataloader->AddTree(i.first, i.second);
     dataloader->PrepareTrainingAndTestTree( "", "SplitMode=Random:NormMode=NumEvents:!V" );
 
 	factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=1000:BoostType=Grad:Shrinkage=0.10:UseBaggedBoost:BaggedSampleFraction=0.50:nCuts=20:MaxDepth=2");
-    // Now you can tell the factory to train, test, and evaluate the MVAs
+    // Now you can ask the factory to train, test, and evaluate the MVAs
     //
     // Train MVAs using the set of training events
     factory->TrainAllMethods();
@@ -598,7 +463,7 @@ int PIDTool::TrainBDT()
     // Save the output
     outputFile->Close();
 
-    std::cout << "==> Wrote root file: " << outputFile->GetName() << std::endl;
+    std::cout << "==> ROOT file written: " << outputFile->GetName() << std::endl;
     std::cout << "==> TMVAClassification finished!" << std::endl;
 
     delete factory;
@@ -609,7 +474,7 @@ int PIDTool::TrainBDT()
     return 0;	
 }
 
-int PIDTool::BDTNtuple(const string& fname, const string& tname)
+Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 {
 	ROOT::EnableImplicitMT();
 	string outname = fname;
@@ -619,7 +484,7 @@ int PIDTool::BDTNtuple(const string& fname, const string& tname)
 	TMVA::Tools::Instance();
 
 	// Default MVA methods to be trained + tested
-	std::map<std::string, int> Use;
+	std::map<std::string, Int_t> Use;
 
 	// Cut optimisation
     Use["BDTG"] = 1;
@@ -632,11 +497,13 @@ int PIDTool::BDTNtuple(const string& fname, const string& tname)
 	Float_t	bdt_shower_start;
 	Float_t bdt_shower_layer_ratio;
 	Float_t bdt_shower_density;
+	Float_t bdt_shower_radius;
 	Float_t bdt_shower_length;
 	Float_t	bdt_ntrack;
 	reader->AddVariable("Edep",               &bdt_Edep);
 	reader->AddVariable("ntrack",             &bdt_ntrack);
 	reader->AddVariable("shower_density",     &bdt_shower_density);
+	reader->AddVariable("shower_radius",      &bdt_shower_radius);
 	reader->AddVariable("shower_layer_ratio", &bdt_shower_layer_ratio);
 	reader->AddVariable("shower_length",      &bdt_shower_length);
 	reader->AddVariable("shower_start",       &bdt_shower_start);
@@ -646,9 +513,9 @@ int PIDTool::BDTNtuple(const string& fname, const string& tname)
 
 	reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
 	cout << "Booked" << endl;
-	vector<string> rdf_input = { "Edep", "ntrack", "shower_density", "shower_layer_ratio", "shower_length", "shower_start", "xwidth", "ywidth", "zwidth" };
+	vector<string> rdf_input = { "Edep", /*"ntrack",*/ "shower_density", "shower_radius", "shower_layer_ratio", "shower_length", "shower_start", "xwidth", "ywidth", "zwidth" };
 	ROOT::RDataFrame df(tname, fname);
-	auto bdtout = df.Define("BDT_pi_plus", [&](double e, int n, double d, double lr, double l, int s, double x, double y, double z)
+	auto bdtout = df.Define("BDT_pi_plus", [&](Double_t e, Int_t n, Double_t d, Double_t r, Double_t lr, Double_t l, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -657,11 +524,28 @@ int PIDTool::BDTNtuple(const string& fname, const string& tname)
 		bdt_shower_start = s;
 		bdt_shower_layer_ratio = lr;
 		bdt_shower_density = d;
+		bdt_shower_radius = r;
 		bdt_shower_length = l;
-		bdt_ntrack = n;
+//		bdt_ntrack = n;
+		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
+//		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
+	}, rdf_input)
+	.Define("BDT_e_plus", [&](Double_t e, Int_t n, Double_t d, Double_t r, Double_t lr, Double_t l, Int_t s, Double_t x, Double_t y, Double_t z)
+	{
+		bdt_xwidth = x;
+		bdt_ywidth = y;
+		bdt_zwidth = z;
+		bdt_Edep   = e;
+		bdt_shower_start = s;
+		bdt_shower_layer_ratio = lr;
+		bdt_shower_density = d;
+		bdt_shower_radius = r;
+		bdt_shower_length = l;
+//		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
+//		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
 	}, rdf_input)
-	.Define("BDT_e_plus", [&](double e, int n, double d, double lr, double l, int s, double x, double y, double z)
+	.Define("BDT_mu_plus", [&](Double_t e, Int_t n, Double_t d, Double_t r, Double_t lr, Double_t l, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -670,11 +554,14 @@ int PIDTool::BDTNtuple(const string& fname, const string& tname)
 		bdt_shower_start = s;
 		bdt_shower_layer_ratio = lr;
 		bdt_shower_density = d;
+		bdt_shower_radius = r;
 		bdt_shower_length = l;
-		bdt_ntrack = n;
+//		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
+//		return (reader->EvaluateMulticlass( "BDTG method" ))[3];
 	}, rdf_input)
-	.Define("BDT_mu_plus", [&](double e, int n, double d, double lr, double l, int s, double x, double y, double z)
+    /*
+	.Define("bdt_proton", [&](Double_t e, Int_t n, Double_t d, Double_t r, Double_t lr, Double_t l, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
 		bdt_xwidth = x;
 		bdt_ywidth = y;
@@ -683,23 +570,12 @@ int PIDTool::BDTNtuple(const string& fname, const string& tname)
 		bdt_shower_start = s;
 		bdt_shower_layer_ratio = lr;
 		bdt_shower_density = d;
+		bdt_shower_radius = r;
 		bdt_shower_length = l;
-		bdt_ntrack = n;
-		return (reader->EvaluateMulticlass( "BDTG method" ))[3];
-	}, rdf_input)
-	.Define("bdt_proton", [&](double e, int n, double d, double lr, double l, int s, double x, double y, double z)
-	{
-		bdt_xwidth = x;
-		bdt_ywidth = y;
-		bdt_zwidth = z;
-		bdt_Edep   = e;
-		bdt_shower_start = s;
-		bdt_shower_layer_ratio = lr;
-		bdt_shower_density = d;
-		bdt_shower_length = l;
-		bdt_ntrack = n;
+//		bdt_ntrack = n;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 	}, rdf_input)
+    */
 	.Snapshot(tname, outname);
 	return 1;
 }
