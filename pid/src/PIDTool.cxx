@@ -499,9 +499,9 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 	Float_t bdt_shower_density;
 	Float_t bdt_shower_radius;
 	Float_t bdt_shower_length;
-	Float_t	bdt_ntrack;
+//	Float_t	bdt_ntrack;
 	reader->AddVariable("Edep",               &bdt_Edep);
-	reader->AddVariable("ntrack",             &bdt_ntrack);
+//	reader->AddVariable("ntrack",             &bdt_ntrack);
 	reader->AddVariable("shower_density",     &bdt_shower_density);
 	reader->AddVariable("shower_radius",      &bdt_shower_radius);
 	reader->AddVariable("shower_layer_ratio", &bdt_shower_layer_ratio);
