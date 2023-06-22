@@ -490,22 +490,25 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
     Use["BDTG"] = 1;
 	std::cout << "==> Start TMVAMulticlassApplication" << std::endl;
 	TMVA::Reader* reader = new TMVA::Reader( "!Color:!Silent" );
+	Float_t bdt_Edep;
+    Float_t bdt_FD_2D;
+//	Float_t	bdt_ntrack;
+	Float_t bdt_shower_density;
+	Float_t bdt_shower_layer_ratio;
+	Float_t bdt_shower_length;
+	Float_t bdt_shower_radius;
+	Float_t	bdt_shower_start;
 	Float_t bdt_xwidth;
 	Float_t bdt_ywidth;
 	Float_t bdt_zwidth;
-	Float_t bdt_Edep;
-	Float_t	bdt_shower_start;
-	Float_t bdt_shower_layer_ratio;
-	Float_t bdt_shower_density;
-	Float_t bdt_shower_radius;
-	Float_t bdt_shower_length;
-//	Float_t	bdt_ntrack;
+
 	reader->AddVariable("Edep",               &bdt_Edep);
+	reader->AddVariable("FD_2D",              &bdt_FD_2D);
 //	reader->AddVariable("ntrack",             &bdt_ntrack);
 	reader->AddVariable("shower_density",     &bdt_shower_density);
-	reader->AddVariable("shower_radius",      &bdt_shower_radius);
 	reader->AddVariable("shower_layer_ratio", &bdt_shower_layer_ratio);
 	reader->AddVariable("shower_length",      &bdt_shower_length);
+	reader->AddVariable("shower_radius",      &bdt_shower_radius);
 	reader->AddVariable("shower_start",       &bdt_shower_start);
 	reader->AddVariable("xwidth",             &bdt_xwidth);
 	reader->AddVariable("ywidth",             &bdt_ywidth);
@@ -513,66 +516,72 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 
 	reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
 	cout << "Booked" << endl;
-	vector<string> rdf_input = { "Edep", /*"ntrack",*/ "shower_density", "shower_radius", "shower_layer_ratio", "shower_length", "shower_start", "xwidth", "ywidth", "zwidth" };
+	vector<string> rdf_input = { "Edep", "FD_2D", /*"ntrack", */"shower_density", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "xwidth", "ywidth", "zwidth"};
+
 	ROOT::RDataFrame df(tname, fname);
-	auto bdtout = df.Define("BDT_pi_plus", [&](Double_t e, Int_t n, Double_t d, Double_t r, Double_t lr, Double_t l, Int_t s, Double_t x, Double_t y, Double_t z)
+
+	auto bdtout = df.Define("BDT_pi_plus", [&](Double_t e, Double_t fd, /* Int_t n, */ Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
-		bdt_xwidth = x;
-		bdt_ywidth = y;
-		bdt_zwidth = z;
-		bdt_Edep   = e;
-		bdt_shower_start = s;
-		bdt_shower_layer_ratio = lr;
-		bdt_shower_density = d;
-		bdt_shower_radius = r;
-		bdt_shower_length = l;
-//		bdt_ntrack = n;
+        bdt_Edep               = e;
+        bdt_FD_2D              = fd;
+//		bdt_ntrack             = n;
+        bdt_shower_density     = d;
+        bdt_shower_layer_ratio = lr;
+        bdt_shower_length      = l;
+        bdt_shower_radius      = r;
+        bdt_shower_start       = s;
+        bdt_xwidth             = x;
+        bdt_ywidth             = y;
+        bdt_zwidth             = z;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 //		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 	}, rdf_input)
-	.Define("BDT_e_plus", [&](Double_t e, Int_t n, Double_t d, Double_t r, Double_t lr, Double_t l, Int_t s, Double_t x, Double_t y, Double_t z)
+	.Define("BDT_mu_plus", [&](Double_t e, Double_t fd, /* Int_t n, */ Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
-		bdt_xwidth = x;
-		bdt_ywidth = y;
-		bdt_zwidth = z;
-		bdt_Edep   = e;
-		bdt_shower_start = s;
-		bdt_shower_layer_ratio = lr;
-		bdt_shower_density = d;
-		bdt_shower_radius = r;
-		bdt_shower_length = l;
-//		bdt_ntrack = n;
+        bdt_Edep               = e;
+        bdt_FD_2D              = fd;
+//		bdt_ntrack             = n;
+        bdt_shower_density     = d;
+        bdt_shower_layer_ratio = lr;
+        bdt_shower_length      = l;
+        bdt_shower_radius      = r;
+        bdt_shower_start       = s;
+        bdt_xwidth             = x;
+        bdt_ywidth             = y;
+        bdt_zwidth             = z;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 //		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
 	}, rdf_input)
-	.Define("BDT_mu_plus", [&](Double_t e, Int_t n, Double_t d, Double_t r, Double_t lr, Double_t l, Int_t s, Double_t x, Double_t y, Double_t z)
+	.Define("BDT_e_plus", [&](Double_t e, Double_t fd, /* Int_t n, */ Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
-		bdt_xwidth = x;
-		bdt_ywidth = y;
-		bdt_zwidth = z;
-		bdt_Edep   = e;
-		bdt_shower_start = s;
-		bdt_shower_layer_ratio = lr;
-		bdt_shower_density = d;
-		bdt_shower_radius = r;
-		bdt_shower_length = l;
-//		bdt_ntrack = n;
+        bdt_Edep               = e;
+        bdt_FD_2D              = fd;
+//		bdt_ntrack             = n;
+        bdt_shower_density     = d;
+        bdt_shower_layer_ratio = lr;
+        bdt_shower_length      = l;
+        bdt_shower_radius      = r;
+        bdt_shower_start       = s;
+        bdt_xwidth             = x;
+        bdt_ywidth             = y;
+        bdt_zwidth             = z;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
 //		return (reader->EvaluateMulticlass( "BDTG method" ))[3];
 	}, rdf_input)
     /*
-	.Define("bdt_proton", [&](Double_t e, Int_t n, Double_t d, Double_t r, Double_t lr, Double_t l, Int_t s, Double_t x, Double_t y, Double_t z)
+	.Define("bdt_proton", [&](Double_t e, Double_t fd, Int_t n, Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
-		bdt_xwidth = x;
-		bdt_ywidth = y;
-		bdt_zwidth = z;
-		bdt_Edep   = e;
-		bdt_shower_start = s;
-		bdt_shower_layer_ratio = lr;
-		bdt_shower_density = d;
-		bdt_shower_radius = r;
-		bdt_shower_length = l;
-//		bdt_ntrack = n;
+        bdt_Edep               = e;
+        bdt_FD_2D              = fd;
+//		bdt_ntrack             = n;
+        bdt_shower_density     = d;
+        bdt_shower_layer_ratio = lr;
+        bdt_shower_length      = l;
+        bdt_shower_radius      = r;
+        bdt_shower_start       = s;
+        bdt_xwidth             = x;
+        bdt_ywidth             = y;
+        bdt_zwidth             = z;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 	}, rdf_input)
     */

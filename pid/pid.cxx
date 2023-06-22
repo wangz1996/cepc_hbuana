@@ -37,24 +37,21 @@ Int_t main(Int_t argc, char* argv[])
 
     if (train == 1 && tree != "")
     {
+        pt->AddVar("Edep",               'D');
+        pt->AddVar("FD_2D",              'D');
+//        pt->AddVar("ntrack",             'D');
+        pt->AddVar("shower_density",     'D');
+        pt->AddVar("shower_layer_ratio", 'D');
+        pt->AddVar("shower_length",      'D');
+        pt->AddVar("shower_radius",      'D');
+        pt->AddVar("shower_start",       'I');
         pt->AddVar("xwidth",             'D');
         pt->AddVar("ywidth",             'D');
         pt->AddVar("zwidth",             'D');
-        pt->AddVar("Edep",               'D');
-        pt->AddVar("shower_start",       'I');
-        pt->AddVar("shower_layer_ratio", 'D');
-        pt->AddVar("shower_density",     'D');
-        pt->AddVar("shower_radius",      'D');
-        pt->AddVar("shower_length",      'D');
-        pt->AddVar("ntrack",             'D');
 
+        pt->AddSignal("pid_pion.root",   tree, "pion");
         pt->AddSignal("pid_muon.root",   tree, "muon");
         pt->AddSignal("pid_e.root",      tree, "e");
-        pt->AddSignal("pid_pion.root",   tree, "pion");
-//      pt->AddSignal("pid_pion.root",   "T", "pion");
-//      pt->AddSignal("pid_e.root",      "T", "electron");
-//      pt->AddSignal("pid_muon.root",   "T", "muon");
-//      pt->AddSignal("pid_proton.root", "T", "proton");
 
         pt->TrainBDT();
 	}
