@@ -38,9 +38,13 @@ Int_t main(Int_t argc, char* argv[])
     if (train == 1 && tree != "")
     {
         pt->AddVar("Edep",               'D');
+        pt->AddVar("Emean",              'D');
         pt->AddVar("FD_2D",              'D');
+        pt->AddVar("hit_layer",          'D');
+        pt->AddVar("nhits",              'I');
 //        pt->AddVar("ntrack",             'D');
         pt->AddVar("shower_density",     'D');
+        pt->AddVar("shower_end",         'I');
         pt->AddVar("shower_layer_ratio", 'D');
         pt->AddVar("shower_length",      'D');
         pt->AddVar("shower_radius",      'D');
@@ -49,9 +53,9 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("ywidth",             'D');
         pt->AddVar("zwidth",             'D');
 
-        pt->AddSignal("pid_pion.root",   tree, "pion");
-        pt->AddSignal("pid_muon.root",   tree, "muon");
-        pt->AddSignal("pid_e.root",      tree, "e");
+        pt->AddSignal("/cefs/higgs/chenjiyuan/hbuana/build/train/data/pid_pion.root",   tree, "pion");
+        pt->AddSignal("/cefs/higgs/chenjiyuan/hbuana/build/train/data/pid_muon.root",   tree, "muon");
+        pt->AddSignal("/cefs/higgs/chenjiyuan/hbuana/build/train/data/pid_e.root",      tree, "e");
 
         pt->TrainBDT();
 	}

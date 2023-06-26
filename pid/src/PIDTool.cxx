@@ -491,9 +491,13 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 	std::cout << "==> Start TMVAMulticlassApplication" << std::endl;
 	TMVA::Reader* reader = new TMVA::Reader( "!Color:!Silent" );
 	Float_t bdt_Edep;
+	Float_t bdt_Emean;
     Float_t bdt_FD_2D;
+    Float_t bdt_hit_layer;
+    Float_t bdt_nhits;
 //	Float_t	bdt_ntrack;
 	Float_t bdt_shower_density;
+	Float_t bdt_shower_end;
 	Float_t bdt_shower_layer_ratio;
 	Float_t bdt_shower_length;
 	Float_t bdt_shower_radius;
@@ -503,9 +507,13 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 	Float_t bdt_zwidth;
 
 	reader->AddVariable("Edep",               &bdt_Edep);
+	reader->AddVariable("Emean",              &bdt_Emean);
 	reader->AddVariable("FD_2D",              &bdt_FD_2D);
+	reader->AddVariable("hit_layer",          &bdt_hit_layer);
+	reader->AddVariable("nhits",              &bdt_nhits);
 //	reader->AddVariable("ntrack",             &bdt_ntrack);
 	reader->AddVariable("shower_density",     &bdt_shower_density);
+	reader->AddVariable("shower_end",         &bdt_shower_end);
 	reader->AddVariable("shower_layer_ratio", &bdt_shower_layer_ratio);
 	reader->AddVariable("shower_length",      &bdt_shower_length);
 	reader->AddVariable("shower_radius",      &bdt_shower_radius);
@@ -516,16 +524,20 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 
 	reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
 	cout << "Booked" << endl;
-	vector<string> rdf_input = { "Edep", "FD_2D", /*"ntrack", */"shower_density", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "xwidth", "ywidth", "zwidth"};
+	vector<string> rdf_input = { "Edep", "Emean", "FD_2D", "hit_layer", "nhits", /*"ntrack", */ "shower_density", "shower_end", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "xwidth", "ywidth", "zwidth"};
 
 	ROOT::RDataFrame df(tname, fname);
 
-	auto bdtout = df.Define("BDT_pi_plus", [&](Double_t e, Double_t fd, /* Int_t n, */ Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+	auto bdtout = df.Define("BDT_pi_plus", [&](Double_t e, Double_t em, Double_t fd, Double_t hl, Int_t nh, /* Int_t n, */ Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
         bdt_Edep               = e;
+        bdt_Emean              = em;
         bdt_FD_2D              = fd;
+        bdt_hit_layer          = hl;
+        bdt_nhits              = nh;
 //		bdt_ntrack             = n;
         bdt_shower_density     = d;
+        bdt_shower_end         = se;
         bdt_shower_layer_ratio = lr;
         bdt_shower_length      = l;
         bdt_shower_radius      = r;
@@ -536,12 +548,16 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 //		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 	}, rdf_input)
-	.Define("BDT_mu_plus", [&](Double_t e, Double_t fd, /* Int_t n, */ Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+	.Define("BDT_mu_plus", [&](Double_t e, Double_t em, Double_t fd, Double_t hl, Int_t nh, /* Int_t n, */ Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
         bdt_Edep               = e;
+        bdt_Emean              = em;
         bdt_FD_2D              = fd;
+        bdt_hit_layer          = hl;
+        bdt_nhits              = nh;
 //		bdt_ntrack             = n;
         bdt_shower_density     = d;
+        bdt_shower_end         = se;
         bdt_shower_layer_ratio = lr;
         bdt_shower_length      = l;
         bdt_shower_radius      = r;
@@ -552,12 +568,16 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 //		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
 	}, rdf_input)
-	.Define("BDT_e_plus", [&](Double_t e, Double_t fd, /* Int_t n, */ Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+	.Define("BDT_e_plus", [&](Double_t e, Double_t em, Double_t fd, Double_t hl, Int_t nh, /* Int_t n, */ Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
         bdt_Edep               = e;
+        bdt_Emean              = em;
         bdt_FD_2D              = fd;
+        bdt_hit_layer          = hl;
+        bdt_nhits              = nh;
 //		bdt_ntrack             = n;
         bdt_shower_density     = d;
+        bdt_shower_end         = se;
         bdt_shower_layer_ratio = lr;
         bdt_shower_length      = l;
         bdt_shower_radius      = r;
@@ -569,12 +589,16 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 //		return (reader->EvaluateMulticlass( "BDTG method" ))[3];
 	}, rdf_input)
     /*
-	.Define("bdt_proton", [&](Double_t e, Double_t fd, Int_t n, Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+	.Define("bdt_proton", [&](Double_t e, Double_t em, Double_t fd, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
 	{
         bdt_Edep               = e;
+        bdt_Emean              = em;
         bdt_FD_2D              = fd;
+        bdt_nhits              = nh;
+        bdt_hit_layer          = hl;
 //		bdt_ntrack             = n;
         bdt_shower_density     = d;
+        bdt_shower_end         = se;
         bdt_shower_layer_ratio = lr;
         bdt_shower_length      = l;
         bdt_shower_radius      = r;
