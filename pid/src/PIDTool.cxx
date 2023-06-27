@@ -248,12 +248,14 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 	.Define("shower_layer_ratio", "shower_layer / hit_layer")
 	.Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)
 	{
+        const Double_t bias = 342.55;
+        const Double_t width = 40.3;
 		Double_t shower_density = 0.0;
 		unordered_map<Int_t, Int_t> map_CellID;
         for (Int_t j = 0; j < Hit_X.size(); j++)
         {
-			Int_t x = (Hit_X.at(j) + 342.55) / 40.3;
-			Int_t y = (Hit_Y.at(j) + 342.55) / 40.3;
+			Int_t x = (Hit_X.at(j) + bias) / width;
+			Int_t y = (Hit_Y.at(j) + bias) / width;
 			Int_t z = layer.at(j);
             Int_t index = z * 100000 + x * 100 + y;
             map_CellID[index] = 1;
@@ -262,8 +264,8 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		{
 			if (Digi_Hit_Energy.at(i) < 0.1)
                 continue;
-			Int_t x = (Hit_X.at(i) + 342.55) / 40.3;
-			Int_t y = (Hit_Y.at(i) + 342.55) / 40.3;
+			Int_t x = (Hit_X.at(i) + bias) / width;
+			Int_t y = (Hit_Y.at(i) + bias) / width;
 			Int_t z = layer.at(i);
 			for (Int_t iz = z - 1; iz <= z + 1; iz++)
 			{

@@ -21,39 +21,45 @@ using namespace std;
 class HTTool
 {
 public:
-	HTTool(const vector<double> &x, const vector<double> &y, const vector<double> &z, const vector<double> &e);
+	HTTool(const vector<Double_t>& x, const vector<Double_t>& y, const vector<Double_t>& z, const vector<Double_t>& e);
 	~HTTool();
-	int GetNtrack(){return ntrack;};
-	vector<double> GetHclX(){return hcx;};
-	vector<double> GetHclY(){return hcy;};
-	vector<double> GetHclZ(){return hcz;};
-	vector<double> GetHclE(){return hce;};
+
+	Int_t GetNtrack() {return ntrack;};
+	vector<Double_t> GetHclX() {return hcx;};
+	vector<Double_t> GetHclY() {return hcy;};
+	vector<Double_t> GetHclZ() {return hcz;};
+	vector<Double_t> GetHclE() {return hce;};
 	
 	
 private:
-	int ntrack = 0;
+	Int_t ntrack = 0;
+
 	typedef struct hit
 	{
-		double x = 0.0;
-		double y = 0.0;
-		double z = 0.0;
-		double e = 0.0;
+		Double_t x = 0.0;
+		Double_t y = 0.0;
+		Double_t z = 0.0;
+		Double_t e = 0.0;
 	}hit;
+
 	typedef struct hcl
 	{
-		double x = 0.0;
-		double y = 0.0;
-		double z = 0.0;
-		double e = 0.0;
+		Double_t x = 0.0;
+		Double_t y = 0.0;
+		Double_t z = 0.0;
+		Double_t e = 0.0;
 	}hcl;
+
 	TH2D *hht;
-	unordered_map<int,vector<hit*>> layer_hits;
+
+	unordered_map<Int_t,vector<hit*>> layer_hits;
 	vector<hcl*> Hough_Cluster;
 	vector<vector<hit*>> MergeAdjacent(vector<hit*> hits);
-	vector<double> hcx;
-	vector<double> hcy;
-	vector<double> hcz;
-	vector<double> hce;
+
+	vector<Double_t> hcx;
+	vector<Double_t> hcy;
+	vector<Double_t> hcz;
+	vector<Double_t> hce;
 };
 
 #endif

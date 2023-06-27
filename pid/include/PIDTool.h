@@ -34,25 +34,32 @@ class PIDTool
 public:
 	PIDTool();
 	~PIDTool();
-	int GenNtuple(const string &file,const string &tree);
-	void AddSignal(const string &file,const string &tree,const string &particle_name)
+
+	Int_t GenNtuple(const string& file, const string& tree);
+
+	void AddSignal(const string& file, const string& tree, const string& particle_name)
 	{
-		signal.insert(pair<pair<TString,TString>,TString>(pair<TString,TString>(TString(file),TString(tree)),TString(particle_name)));
+		signal.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
 	}
-	void AddVar(const string &v,const char &type)
+
+	void AddVar(const string& v, const Char_t& type)
 	{
-		var.insert(pair<TString,char>(TString(v),type));
+		var.insert(pair<TString, Char_t>(TString(v), type));
 	}
-	int TrainBDT();
-	int BDTNtuple(const string &fname,const string &tname);
+
+	Int_t TrainBDT();
+	Int_t BDTNtuple(const string& fname, const string& tname);
+
 	void Clear()
 	{
 		var.clear();
 		signal.clear();
 	}
+
+
 private:
-	map<TString,char> var;
-	map<pair<TString,TString>,TString> signal;
-	
+	map<TString, Char_t> var;
+	map<pair<TString, TString>, TString> signal;
 };
+
 #endif
