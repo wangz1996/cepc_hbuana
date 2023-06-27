@@ -21,7 +21,7 @@ using namespace std;
 class HTTool
 {
 public:
-	HTTool(const vector<int> &id,const vector<double> &x,const vector<double> &y,const vector<double> &z,const vector<double> &e);
+	HTTool(const vector<double> &x, const vector<double> &y, const vector<double> &z, const vector<double> &e);
 	~HTTool();
 	int GetNtrack(){return ntrack;};
 	vector<double> GetHclX(){return hcx;};
@@ -31,21 +31,20 @@ public:
 	
 	
 private:
-	int ntrack=0;
+	int ntrack = 0;
 	typedef struct hit
 	{
-		int id=0;
-		double x=0.;
-		double y=0.;
-		double z=0.;
-		double e=0.;
+		double x = 0.0;
+		double y = 0.0;
+		double z = 0.0;
+		double e = 0.0;
 	}hit;
 	typedef struct hcl
 	{
-		double x=0.;
-		double y=0.;
-		double z=0.;
-		double e=0.;
+		double x = 0.0;
+		double y = 0.0;
+		double z = 0.0;
+		double e = 0.0;
 	}hcl;
 	TH2D *hht;
 	unordered_map<int,vector<hit*>> layer_hits;

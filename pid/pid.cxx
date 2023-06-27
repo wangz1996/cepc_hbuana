@@ -42,7 +42,7 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("FD_2D",              'D');
         pt->AddVar("hit_layer",          'D');
         pt->AddVar("nhits",              'I');
-//        pt->AddVar("ntrack",             'D');
+        pt->AddVar("ntrack",             'D');
         pt->AddVar("shower_density",     'D');
         pt->AddVar("shower_end",         'I');
         pt->AddVar("shower_layer_ratio", 'D');
@@ -53,9 +53,9 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("ywidth",             'D');
         pt->AddVar("zwidth",             'D');
 
-        pt->AddSignal("/cefs/higgs/chenjiyuan/hbuana/build/train/data/pid_pion.root",   tree, "pion");
-        pt->AddSignal("/cefs/higgs/chenjiyuan/hbuana/build/train/data/pid_muon.root",   tree, "muon");
-        pt->AddSignal("/cefs/higgs/chenjiyuan/hbuana/build/train/data/pid_e.root",      tree, "e");
+        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_pion.root",   tree, "pion");
+        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_muon.root",   tree, "muon");
+        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_e.root",      tree, "e");
 
         pt->TrainBDT();
 	}
