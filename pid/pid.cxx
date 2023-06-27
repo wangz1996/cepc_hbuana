@@ -37,25 +37,17 @@ Int_t main(Int_t argc, char* argv[])
 
     if (train == 1 && tree != "")
     {
-        pt->AddVar("Edep",               'D');
-        pt->AddVar("Emean",              'D');
-        pt->AddVar("FD_2D",              'D');
-        pt->AddVar("hit_layer",          'D');
-        pt->AddVar("nhits",              'I');
-        pt->AddVar("ntrack",             'D');
-        pt->AddVar("shower_density",     'D');
-        pt->AddVar("shower_end",         'I');
-        pt->AddVar("shower_layer_ratio", 'D');
-        pt->AddVar("shower_length",      'D');
-        pt->AddVar("shower_radius",      'D');
-        pt->AddVar("shower_start",       'I');
-        pt->AddVar("xwidth",             'D');
-        pt->AddVar("ywidth",             'D');
-        pt->AddVar("zwidth",             'D');
+//        pt->AddVar("E_dep",              'D');
+        pt->AddVar("Hits_no",            'L');
+        pt->AddVar("Shower_density",     'D');
+        pt->AddVar("Shower_layer_ratio", 'D');
+        pt->AddVar("Shower_length",      'D');
+        pt->AddVar("Shower_radius",      'D');
+        pt->AddVar("Shower_start",       'D');
 
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_pion.root",   tree, "pion");
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_muon.root",   tree, "muon");
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_e.root",      tree, "e");
+        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/pion.root", tree, "pion");
+        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/muon.root", tree, "muon");
+        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/e.root",    tree, "e");
 
         pt->TrainBDT();
 	}
