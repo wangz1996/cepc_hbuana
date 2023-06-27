@@ -512,7 +512,7 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 
 	ROOT::RDataFrame df(tname, fname);
 
-	auto bdtout = df.Define("BDT_pi_plus", [&](/*Double_t e, */ Int_t nh, Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s)
+	auto bdtout = df.Define("BDT_pi_plus", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
 	{
 //        bdt_E_dep              = e;
         bdt_Hits_no            = nh;
@@ -524,7 +524,7 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 //		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 	}, rdf_input)
-	.Define("BDT_mu_plus", [&](/*Double_t e, */ Int_t nh, Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s)
+	.Define("BDT_mu_plus", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
 	{
 //        bdt_E_dep              = e;
         bdt_Hits_no            = nh;
@@ -536,7 +536,7 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 //		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
 	}, rdf_input)
-	.Define("BDT_e_plus", [&](/*Double_t e, */ Int_t nh, Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s)
+	.Define("BDT_e_plus", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
 	{
 //        bdt_E_dep              = e;
         bdt_Hits_no            = nh;
@@ -549,7 +549,7 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 //		return (reader->EvaluateMulticlass( "BDTG method" ))[3];
 	}, rdf_input)
     /*
-	.Define("bdt_proton", [&](Double_t e, Int_t nh, Double_t d, Double_t lr, Double_t l, Double_t r, Int_t s)
+	.Define("bdt_proton", [&](Double_t e, long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
 	{
 //        bdt_E_dep              = e;
         bdt_Hits_no            = nh;
