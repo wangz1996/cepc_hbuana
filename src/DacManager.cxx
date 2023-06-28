@@ -26,10 +26,10 @@ DacManager::DacManager(const TString &outname)
 	hdacslope=new TH2D("hdacslope","HighGain/LowGain",360,0,360,36,0,36);
 	hfit=new TH2D("hfit","Fitting Goodness",360,0,360,36,0,36);
 	hhighgain_platform=new TH2D("hhighgain_platform","High Gain Platform",360,0,360,36,0,36);
-	f1 = new TF1("f1","[0]*x+[1]"); // Function used to fit the slope (High_gain / Low_gain)
-	f1->SetParLimits(0,1.,10.);
-	f2 = new TF1("f2","[0]*x+[1]"); // Function used to fetch the high gain platform
-	//cout<<"Initialization done"<<endl;
+	f1 = new TF1("f1","(x<[0])?([1]*x+[2]):([3]*x+[4])",-50,300);
+	f1->SetParLimits(0,50.,150.);
+	f1->SetParLimits(1,20.,35.);
+	f1->SetParLimits(4,1500.,3500.);
 }
 
 void DacManager::SetPedestal(const TString &pedname)
@@ -50,7 +50,6 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 		TString name_fit="hfit_"+TString(to_string(i).c_str());
 		TString name_highgainplatform="hhighgainplatform_"+TString(to_string(i).c_str());
 		map_layer_dacslope[i]=new TH2D(name_dacslope,name_dacslope,9,0,9,36,0,36);
-		map_layer_fit[i]=new TH2D(name_fit,name_fit,9,0,9,36,0,36);
 		map_layer_highgainplatform[i]=new TH2D(name_highgainplatform,name_highgainplatform,9,0,9,36,0,36);
 	}
 	for(int l=0;l<40;l++)
@@ -95,7 +94,7 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 		int Nentry = tin->GetEntries();
 		for(int ientry=0;ientry<Nentry;ientry++)
 		{
-			if(ientry<5)continue; // Skip the first 5 events from Hao Liu
+			//if(ientry<5)continue; // Skip the first 5 events from Hao Liu
 			tin->GetEntry(ientry);
 			for(int i=0;i<hitTags->size();i++)
 			{
@@ -122,7 +121,7 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 				if(tmp_highgain>time_max)time_max=tmp_highgain;
 				if(tmp_lowgain<charge_min)charge_min=tmp_lowgain;
 				if(tmp_lowgain>charge_max)charge_max=tmp_lowgain;
-				map_cellid_calib[cellid]->Fill(tmp_highgain,tmp_lowgain); // Fill low gain high gain with pedestal subtracted
+				map_cellid_calib[cellid]->Fill(tmp_lowgain,tmp_highgain); // Fill low gain high gain with pedestal subtracted
 			}
 
 		}
@@ -142,112 +141,16 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 		int layer = cellid/1e5;
 		int channel = cellid%100;
 		int chip = (cellid%100000)/10000;
-		double fit_goodness = 10000.; // Initialize a large fit value
 		double highgain_platform = 10000.;
 		double slope = -10.; // Slope after fitting
-		double xfit=0;
-		auto findf = [](TH2D *h2,int binx,int biny)
-		{
-			bool adj=false;
-			for(int i=binx-20;i<=binx+20;i++)
-			{
-				for(int j=biny-20;j<=biny+20;j++)
-				{
-					if(h2->GetBinContent(i,j)>0)
-					{
-						adj=true;
-						break;
-					}
-				}
-			}
-			return adj;
-		};
-		for(int index=0;index<200;index++)
-		{
-			for(int ij=i.second->GetNbinsY();ij>=i.second->GetNbinsY()-index;ij--)
-			{
-				int binx=i.second->GetNbinsX()-index;
-				int biny=ij;
-				if(i.second->GetBinContent(binx,biny)>0 && i.second->GetYaxis()->GetBinCenter(biny)>10 && findf(i.second,binx,biny))
-				{
-					xfit = i.second->GetXaxis()->GetBinCenter(binx);
-					break;
-				}
-			}
-			for(int ii=i.second->GetNbinsX();ii>=i.second->GetNbinsX()-index;ii--)
-			{
-				int binx=ii;
-				int biny=i.second->GetNbinsY()-index;
-				if(i.second->GetBinContent(binx,biny)>0 && i.second->GetYaxis()->GetBinCenter(biny)>10 && findf(i.second,binx,biny))
-				{
-					xfit = i.second->GetXaxis()->GetBinCenter(binx);
-					break;
-				}
-			}
-			if(xfit>100)break;
-		}
-		i.second->Fit(f1,"q+","",xfit-100,xfit);
-		i.second->Fit(f2,"q+","",50,xfit-500);
-		double k1=f1->GetParameter(0);
-		double k2=f2->GetParameter(0);
-		double b1=f1->GetParameter(1);
-		double b2=f2->GetParameter(1);
-		highgain_platform = (b2-b1)/(k1-k2);
-		slope = f2->GetParameter(0);
-		fit_goodness = f2->GetChisquare()/f2->GetNDF();
-		//if(i.second->GetEntries()>10)
-		//{
-		//	i.second->Fit("f1","q","",fitstart,fitend);
-		//	double fg0 = f1->GetChisquare()/f1->GetNDF(); //Fit goodness at largest range
-		//	for(int xmax=fitend;xmax>=0;xmax-=20) // TODO
-		//	{
-		//		i.second->Fit("f1","q","",fitstart,xmax);
-		//		fit_goodness = f1->GetChisquare()/f1->GetNDF();
-		//		slope = f1->GetParameter(0); // Slope after fitting
-		//		//cout<<fitstart<<" "<<xmax<<" "<<fit_goodness<<endl;
-		//		if((fit_goodness<400. || fit_goodness < (0.2 * fg0)) && slope > 10. && slope < 50.)
-		//		{
-		//			fit_goodvalue_found = true;
-		//			fitend = xmax;
-		//			break;
-		//		}
-		//	}
-		//	if(fit_goodvalue_found)
-		//	{
-		//		cout<<"fit good value found: "<<cellid<<" "<<fitstart<<" "<<fitend<<" "<<fit_goodness<<" "<<fg0<<endl;
-		//	}
-		//	else
-		//	{
-		//		i.second->Fit("f1","q","",fitstart,fitend);
-		//		fit_goodness = f1->GetChisquare()/f1->GetNDF();
-		//	}
-		//	// Find the maximum to be the platform
-		//	bool found_max=false; 
-		//	for(int jbin=i.second->GetNbinsY();jbin>0;jbin--)
-		//	{
-		//		for(int ibin=0;ibin<i.second->GetNbinsX();ibin++)
-		//		{
-		//			if(i.second->GetBinContent(ibin,jbin)>0.1)
-		//			{
-		//				found_max=true;
-		//				i.second->Fit("f2","q+","",i.second->GetXaxis()->GetBinCenter(ibin)-10,i.second->GetXaxis()->GetBinCenter(ibin)+10);
-		//				highgain_platform = f2->GetParameter(0);
-		//			}
-		//			if(found_max)break;
-		//		}
-		//		if(found_max)break;
-		//	}
-		//	slope = f1->GetParameter(0); // Slope after fitting
-		//}
-		//
-		//2D for each layer following
+		i.second->Fit(f1,"q+","",-50,300);
+		highgain_platform = f1->GetParameter(4);
+		slope = f1->GetParameter(1);
 		map_layer_dacslope[layer]->Fill(chip,channel,slope);
-		map_layer_fit[layer]->Fill(chip,channel,fit_goodness);
 		map_layer_highgainplatform[layer]->Fill(chip,channel,highgain_platform); // High gain Platform map
 
 		// 2D for all layers following
 		hdacslope->Fill(layer*9+chip,channel,slope);
-		hfit->Fill(layer*9+chip,channel,fit_goodness);
 		hhighgain_platform->Fill(layer*9+chip,channel,highgain_platform);
 
 		//Save histograms
@@ -272,10 +175,8 @@ int DacManager::AnaDac(const std::string &list,const TString &mode)
 		TString dir_name = TString("calib/layer_") + TString(to_string(i).c_str());
 		fout->cd(dir_name);
 		map_layer_dacslope[i]->Write();
-		map_layer_fit[i]->Write();
 		map_layer_highgainplatform[i]->Write();
 		this->SaveCanvas(map_layer_dacslope[i],(string("dacslope_")+to_string(i)).c_str());
-		//this->SaveCanvas(map_layer_fit[i],string("fit_")+to_string(i));
 		//this->SaveCanvas(map_layer_highgainplatform[i],string("highgainplatform_")+to_string(i));
 	}
 	fout->cd("");

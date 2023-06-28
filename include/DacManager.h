@@ -34,7 +34,6 @@ public:
 	vector<int> vec_cellid;
 	map<int,TH2D*> map_cellid_calib;
 	map<int,TH2D*> map_layer_dacslope;
-	map<int,TH2D*> map_layer_fit;
 	map<int,TH2D*> map_layer_highgainplatform;
 	map<int,int> map_cellid_exist;
 	TH2D	*hdacslope;
