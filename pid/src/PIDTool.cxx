@@ -18,8 +18,8 @@ Int_t NHScaleV2(RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<D
         Double_t y = pos_y.at(i);
         Double_t z = pos_z.at(i);
 
-        tmpI = (Int_t ((x + 342.55) / 40.15) + Int_t(TMath::Abs(x) / x)) / RatioX;
-        tmpJ = (Int_t ((y + 342.55) / 40.15) + Int_t(TMath::Abs(y) / y)) / RatioY;
+        tmpI = (Int_t ((x + 342.55) / 40.3) + Int_t(TMath::Abs(x) / x)) / RatioX;
+        tmpJ = (Int_t ((y + 342.55) / 40.3) + Int_t(TMath::Abs(y) / y)) / RatioY;
         tmpK = (Int_t)(z / 30) / RatioZ;
         tmpEn = 1;
 
