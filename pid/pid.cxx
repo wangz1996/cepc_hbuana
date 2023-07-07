@@ -49,6 +49,10 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/muon.root", tree, "muon");
         pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/e.root",    tree, "e");
 
+        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/test_pion.root", tree, "pion");
+        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/test_muon.root", tree, "muon");
+        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/test_e.root",    tree, "e");
+
         pt->TrainBDT();
 	}
 

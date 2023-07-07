@@ -42,6 +42,11 @@ public:
 		signal.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
 	}
 
+	void AddTest(const string& file, const string& tree, const string& particle_name)
+	{
+		test.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
+	}
+
 	void AddVar(const string& v, const Char_t& type)
 	{
 		var.insert(pair<TString, Char_t>(TString(v), type));
@@ -60,6 +65,7 @@ public:
 private:
 	map<TString, Char_t> var;
 	map<pair<TString, TString>, TString> signal;
+	map<pair<TString, TString>, TString> test;
 };
 
 #endif

@@ -425,11 +425,18 @@ Int_t PIDTool::TrainBDT()
     TMVA::Tools::Instance();
 
 	unordered_map<TTree*, TString> tsignal;
+	unordered_map<TTree*, TString> ttest;
 	for (auto i : signal)
 	{
 		TFile* f = TFile::Open(i.first.first, "READ");
 		TTree* t = (TTree*)f->Get(i.first.second);
 		tsignal.insert(pair<TTree*, TString>(t, i.second));
+	}
+	for (auto j : test)
+	{
+		TFile* f = TFile::Open(j.first.first, "READ");
+		TTree* t = (TTree*)f->Get(j.first.second);
+		ttest.insert(pair<TTree*, TString>(t, j.second));
 	}
     // Create a ROOT output file where TMVA will store ntuples, histograms, etc.
     TString outfileName( "TMVAMulticlass.root" );
@@ -443,7 +450,9 @@ Int_t PIDTool::TrainBDT()
 		dataloader->AddVariable(i.first, i.second);
     // You can add an arbitrary number of signal or background trees
     for (auto i : tsignal)
-        dataloader->AddTree(i.first, i.second);
+        dataloader->AddTree(i.first, i.second, 1.0, "", TMVA::Types::kTraining);
+	for (auto j : ttest)
+		dataloader->AddTree(j.first, j.second, 1.0, "", TMVA::Types::kTesting);
     dataloader->PrepareTrainingAndTestTree( "", "SplitMode=Random:NormMode=NumEvents:!V" );
 
 	factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=1000:BoostType=Grad:Shrinkage=0.10:UseBaggedBoost:BaggedSampleFraction=0.50:nCuts=20:MaxDepth=2");
