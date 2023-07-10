@@ -45,13 +45,13 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("Shower_radius",      'D');
         pt->AddVar("Shower_start",       'D');
 
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/pion.root", tree, "pion");
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/muon.root", tree, "muon");
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/e.root",    tree, "e");
+        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/pion.root", tree, "pion");
+        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/muon.root", tree, "muon");
+        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/e.root",    tree, "e");
 
-        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/test_pion.root", tree, "pion");
-        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/test_muon.root", tree, "muon");
-        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/test_e.root",    tree, "e");
+        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/test_pion.root", tree, "pion");
+        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/test_muon.root", tree, "muon");
+        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/test_e.root",    tree, "e");
 
         pt->TrainBDT();
 	}

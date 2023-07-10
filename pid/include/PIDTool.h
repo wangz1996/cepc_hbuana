@@ -59,6 +59,7 @@ public:
 	{
 		var.clear();
 		signal.clear();
+        test.clear();
 	}
 
 

@@ -359,61 +359,6 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		delete httool;
 		return ntrack;
 	}, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
-    // Below are time analyses (relevant data not stored)
-    /*
-    .Define("time_mean_hit", [] (vector<Double_t> hit_time)
-    {
-        Double_t tot = 0;
-        const Int_t hits = hit_time.size();
-        for (Double_t& i : hit_time)
-            tot += i;
-        return tot / hits;
-    }, {"Hit_Time"})
-    .Define("time_rms_hit", [] (vector<Double_t> hit_time)
-    {
-        Double_t tot2 = 0;
-        const Int_t hits = hit_time.size();
-        for (Double_t& i : hit_time)
-            tot2 += i * i;
-        return TMath::Sqrt(tot2 / hits);
-    }, {"Hit_Time"})
-    .Define("time_mean_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending)
-    {
-        Double_t tot = 0;
-        Int_t hits = 0;
-        const Int_t n = hit_time.size();
-        for (Int_t i = 0; i < n; i++)
-        {
-            if (layer.at(i) >= beginning && layer.at(i) < ending)
-            {
-                hits++;
-                tot += hit_time.at(i), 2;
-            }
-        }
-        if (hits == 0)
-            return 0.0;
-        else
-            return tot / hits;
-    }, {"Hit_Time", "layer", "shower_start", "shower_end"})
-    .Define("time_rms_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending)
-    {
-        Double_t tot2 = 0;
-        Int_t hits = 0;
-        const Int_t n = hit_time.size();
-        for (Int_t i = 0; i < n; i++)
-        {
-            if (layer.at(i) >= beginning && layer.at(i) < ending)
-            {
-                hits++;
-                tot2 += TMath::Power(hit_time.at(i), 2);
-            }
-        }
-        if (hits == 0)
-            return 0.0;
-        else
-            return tot2 / hits;
-    }, {"Hit_Time", "layer", "shower_start", "shower_end"})
-    */
 	//.Range(1)
     .Snapshot(tree, outname);
 	delete dm;
@@ -453,6 +398,7 @@ Int_t PIDTool::TrainBDT()
         dataloader->AddTree(i.first, i.second, 1.0, "", TMVA::Types::kTraining);
 	for (auto j : ttest)
 		dataloader->AddTree(j.first, j.second, 1.0, "", TMVA::Types::kTesting);
+
     dataloader->PrepareTrainingAndTestTree( "", "SplitMode=Random:NormMode=NumEvents:!V" );
 
 	factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=1000:BoostType=Grad:Shrinkage=0.10:UseBaggedBoost:BaggedSampleFraction=0.50:nCuts=20:MaxDepth=2");
@@ -531,7 +477,6 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         bdt_Shower_radius      = r;
         bdt_Shower_start       = s;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
-//		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 	}, rdf_input)
 	.Define("BDT_mu_plus", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
 	{
@@ -543,7 +488,6 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         bdt_Shower_radius      = r;
         bdt_Shower_start       = s;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
-//		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
 	}, rdf_input)
 	.Define("BDT_e_plus", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
 	{
@@ -555,21 +499,7 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         bdt_Shower_radius      = r;
         bdt_Shower_start       = s;
 		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
-//		return (reader->EvaluateMulticlass( "BDTG method" ))[3];
 	}, rdf_input)
-    /*
-	.Define("bdt_proton", [&](Double_t e, long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
-	{
-//        bdt_E_dep              = e;
-        bdt_Hits_no            = nh;
-        bdt_Shower_density     = d;
-        bdt_Shower_layer_ratio = lr;
-        bdt_Shower_length      = l;
-        bdt_Shower_radius      = r;
-        bdt_Shower_start       = s;
-		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
-	}, rdf_input)
-    */
 	.Snapshot(tname, outname);
 	return 1;
 }
