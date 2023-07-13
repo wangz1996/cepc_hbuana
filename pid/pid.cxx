@@ -35,7 +35,7 @@ Int_t main(Int_t argc, char* argv[])
     if (file != "" && tree != "")
         pt->GenNtuple(file, tree);
 
-    if (train == 1 && tree != "")
+    if (train == 1)
     {
 //        pt->AddVar("E_dep",              'D');
         pt->AddVar("Hits_no",            'L');
@@ -45,13 +45,17 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("Shower_radius",      'D');
         pt->AddVar("Shower_start",       'D');
 
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/pion.root", tree, "pion");
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/muon.root", tree, "muon");
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/e.root",    tree, "e");
+        pt->AddTrainSignal("/lustre/collider/chenjiyuan/hbuana/build/check/background_data/pion.root", "Calib_Hit", "pion");
+//        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/muon.root", "Calib_Hit", "muon");
+//        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/e.root",    "Calib_Hit", "e");
 
-        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/test_pion.root", tree, "pion");
-        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/test_muon.root", tree, "muon");
-        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/test_e.root",    tree, "e");
+        pt->AddTrainBkg("/lustre/collider/chenjiyuan/hbuana/build/check/background_data/background.root", "Calib_Hit", "bkg");
+
+        pt->AddTestSignal("/lustre/collider/chenjiyuan/hbuana/build/check/background_data/test_pion.root", "Calib_Hit", "pion");
+//        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/test_muon.root", "Calib_Hit", "muon");
+//        pt->AddTest("/lustre/collider/chenjiyuan/hbuana/build/check/data_training/test_e.root",    "Calib_Hit", "e");
+
+        pt->AddTestBkg("/lustre/collider/chenjiyuan/hbuana/build/check/background_data/test_background.root", "Calib_Hit", "bkg");
 
         pt->TrainBDT();
 	}

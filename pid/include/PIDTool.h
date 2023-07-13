@@ -37,14 +37,24 @@ public:
 
 	Int_t GenNtuple(const string& file, const string& tree);
 
-	void AddSignal(const string& file, const string& tree, const string& particle_name)
+	void AddTrainSignal(const string& file, const string& tree, const string& particle_name)
 	{
-		signal.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
+		train_signal.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
 	}
 
-	void AddTest(const string& file, const string& tree, const string& particle_name)
+    void AddTrainBkg(const string& file, const string& tree, const string& particle_name)
+    {
+        train_bkg.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
+    }
+
+	void AddTestSignal(const string& file, const string& tree, const string& particle_name)
 	{
-		test.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
+		test_signal.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
+	}
+
+	void AddTestBkg(const string& file, const string& tree, const string& particle_name)
+	{
+		test_bkg.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
 	}
 
 	void AddVar(const string& v, const Char_t& type)
@@ -58,15 +68,19 @@ public:
 	void Clear()
 	{
 		var.clear();
-		signal.clear();
-        test.clear();
+		train_signal.clear();
+        train_bkg.clear();
+        test_signal.clear();
+		test_bkg.clear();
 	}
 
 
 private:
 	map<TString, Char_t> var;
-	map<pair<TString, TString>, TString> signal;
-	map<pair<TString, TString>, TString> test;
+	map<pair<TString, TString>, TString> train_signal;
+	map<pair<TString, TString>, TString> train_bkg;
+	map<pair<TString, TString>, TString> test_signal;
+	map<pair<TString, TString>, TString> test_bkg;
 };
 
 #endif

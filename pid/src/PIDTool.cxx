@@ -47,13 +47,13 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 {
     const Int_t nlayer = 40;
     const Int_t thick = 30;
-	//ROOT::EnableImplicitMT();
-	ROOT::DisableImplicitMT();
-	ROOT::RDataFrame *dm = new ROOT::RDataFrame(tree, file);
-	string outname = file;
+    //ROOT::EnableImplicitMT();
+    ROOT::DisableImplicitMT();
+    ROOT::RDataFrame *dm = new ROOT::RDataFrame(tree, file);
+    string outname = file;
     outname = outname.substr(outname.find_last_of('/') + 1);
-	outname = "pid_" + outname;
-	auto fout = dm->Define("nhits", [] (vector<Double_t> Hit_X)
+    outname = "pid_" + outname;
+    auto fout = dm->Define("nhits", [] (vector<Double_t> Hit_X)
     {
         return (Int_t) Hit_X.size();
     }, {"Hit_X"})
@@ -116,56 +116,56 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     }, {"layer", "Digi_Hit_Energy"})
     .Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)->vector<Double_t>
     {
-		vector<Double_t> layer_rms(nlayer);
-		vector<TH2D*> hvec;
-		for (Int_t i = 0; i < nlayer; i++)
+        vector<Double_t> layer_rms(nlayer);
+        vector<TH2D*> hvec;
+        for (Int_t i = 0; i < nlayer; i++)
             hvec.emplace_back(new TH2D("h" + TString(to_string(i)) + "_rms", "Layer RMS", 100, -400, 400, 100, -400, 400));
-		for (Int_t i = 0; i < Hit_X.size(); i++)
-		{
+        for (Int_t i = 0; i < Hit_X.size(); i++)
+        {
             Int_t ilayer = layer.at(i);
             hvec.at(ilayer)->Fill(Hit_X.at(i), Hit_Y.at(i), Digi_Hit_Energy.at(i));
-		}
-		for (Int_t i = 0; i < hvec.size(); i++)
-		{
-			if (hvec.at(i)->GetEntries() < 4)
-				layer_rms.at(i) = 0.;
-			else
-				layer_rms.at(i) = hvec.at(i)->GetRMS();
-			delete hvec.at(i);
-		}
-		vector<TH2D*>().swap(hvec);
-		return layer_rms;
+        }
+        for (Int_t i = 0; i < hvec.size(); i++)
+        {
+            if (hvec.at(i)->GetEntries() < 4)
+                layer_rms.at(i) = 0.;
+            else
+                layer_rms.at(i) = hvec.at(i)->GetRMS();
+            delete hvec.at(i);
+        }
+        vector<TH2D*>().swap(hvec);
+        return layer_rms;
     }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy"})
-	.Define("shower_start", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms)
-	{
-		Int_t shower_start = nlayer + 2;
-		for (Int_t i = 0; i < layer_hitcell.size() - 3; i++)
-		{
-			if (layer_hitcell.at(i) >= 4 && layer_rms.at(i) < 50.0 && layer_hitcell.at(i + 1) >= 4 && layer_hitcell.at(i + 2) >= 4 && layer_hitcell.at(i + 3) >= 4)
-			{
-				shower_start = i;
-				break;
-			}
-		}
-		return shower_start;
-	}, {"layer_hitcell", "layer_rms"})
-	.Define("shower_end", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms, Int_t shower_start)
-	{
-		Int_t shower_end = nlayer + 2;
-		if (shower_start == nlayer + 2)
+    .Define("shower_start", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms)
+    {
+        Int_t shower_start = nlayer + 2;
+        for (Int_t i = 0; i < layer_hitcell.size() - 3; i++)
+        {
+            if (layer_hitcell.at(i) >= 4 && layer_rms.at(i) < 50.0 && layer_hitcell.at(i + 1) >= 4 && layer_hitcell.at(i + 2) >= 4 && layer_hitcell.at(i + 3) >= 4)
+            {
+                shower_start = i;
+                break;
+            }
+        }
+        return shower_start;
+    }, {"layer_hitcell", "layer_rms"})
+    .Define("shower_end", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms, Int_t shower_start)
+    {
+        Int_t shower_end = nlayer + 2;
+        if (shower_start == nlayer + 2)
             return shower_end;
-		for (Int_t i = shower_start; i < layer_hitcell.size() - 3; i++)
-		{
-			if (layer_hitcell.at(i) < 4 && layer_hitcell.at(i + 1) < 4)
-			{
-				shower_end = i;
-				break;
-			}
-		}
+        for (Int_t i = shower_start; i < layer_hitcell.size() - 3; i++)
+        {
+            if (layer_hitcell.at(i) < 4 && layer_hitcell.at(i + 1) < 4)
+        	{
+                shower_end = i;
+                break;
+            }
+        }
         if (shower_end == nlayer + 2)
             shower_end = nlayer;
-		return shower_end;
-	}, {"layer_hitcell", "layer_rms", "shower_start"})
+        return shower_end;
+    }, {"layer_hitcell", "layer_rms", "shower_start"})
     .Define("shower_radius", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, Int_t beginning, Int_t ending)
     {
         LongDouble_t d2 = 0;
@@ -186,67 +186,67 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     }, {"Hit_X", "Hit_Y", "layer", "shower_start", "shower_end"})
     .Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Int_t> layer)
     {
-		vector<Double_t> layer_xwidth(nlayer);
-		vector<TH1D*> h;
-		for (Int_t l = 0; l < nlayer; l++)
-			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
-		for (Int_t i = 0; i < layer.size(); i++)
-		{
-			Int_t ilayer = layer.at(i);
-			h.at(ilayer)->Fill(Hit_X.at(i));
-		}
-		for (Int_t i = 0; i < h.size(); i++)
-		{
-			layer_xwidth.at(i) = h.at(i)->GetRMS();
-			delete h.at(i);
-		}
-		vector<TH1D*>().swap(h);
-		return layer_xwidth;
+        vector<Double_t> layer_xwidth(nlayer);
+        vector<TH1D*> h;
+        for (Int_t l = 0; l < nlayer; l++)
+            h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
+        for (Int_t i = 0; i < layer.size(); i++)
+        {
+            Int_t ilayer = layer.at(i);
+            h.at(ilayer)->Fill(Hit_X.at(i));
+        }
+        for (Int_t i = 0; i < h.size(); i++)
+        {
+            layer_xwidth.at(i) = h.at(i)->GetRMS();
+            delete h.at(i);
+        }
+        vector<TH1D*>().swap(h);
+        return layer_xwidth;
     }, {"Hit_X", "layer"})
     .Define("layer_ywidth", [] (vector<Double_t> Hit_Y, vector<Int_t> layer)
     {
-		vector<Double_t> layer_ywidth(nlayer);
-		vector<TH1D*> h;
-		for (Int_t l = 0; l < nlayer; l++)
-			h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
-		for (Int_t i = 0; i < layer.size(); i++)
-		{
-			Int_t ilayer = layer.at(i);
-			h.at(ilayer)->Fill(Hit_Y.at(i));
-		}
-		for (Int_t i = 0; i < h.size(); i++)
-		{
-			layer_ywidth.at(i) = h.at(i)->GetRMS();
-			delete h.at(i);
-		}
-		vector<TH1D*>().swap(h);
-		return layer_ywidth;
+        vector<Double_t> layer_ywidth(nlayer);
+        vector<TH1D*> h;
+        for (Int_t l = 0; l < nlayer; l++)
+            h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
+        for (Int_t i = 0; i < layer.size(); i++)
+        {
+            Int_t ilayer = layer.at(i);
+            h.at(ilayer)->Fill(Hit_Y.at(i));
+        }
+        for (Int_t i = 0; i < h.size(); i++)
+        {
+            layer_ywidth.at(i) = h.at(i)->GetRMS();
+            delete h.at(i);
+        }
+        vector<TH1D*>().swap(h);
+        return layer_ywidth;
     }, {"Hit_Y", "layer"})
-	.Define("shower_layer", [] (vector<Double_t> layer_xwidth, vector<Double_t> layer_ywidth)
-	{
-		Double_t shower_layer = 0;
-		for (Int_t i = 0; i < nlayer; i++)
-		{
-			if (layer_xwidth.at(i) > 60 && layer_ywidth.at(i) > 60)
-				shower_layer++;
-		}
-		return shower_layer;
-	}, {"layer_xwidth", "layer_ywidth"})
-	.Define("hit_layer", [] (vector<Int_t> layer)
-	{
-		Double_t hit_layer = 0;
-		unordered_map<Int_t, Int_t> map_layer_hit;
-		for (Double_t i : layer)
-			map_layer_hit[i]++;
-		for (Int_t i = 0; i < nlayer; i++)
-		{
-			if (map_layer_hit.count(i) > 0)
+    .Define("shower_layer", [] (vector<Double_t> layer_xwidth, vector<Double_t> layer_ywidth)
+    {
+        Double_t shower_layer = 0;
+        for (Int_t i = 0; i < nlayer; i++)
+        {
+            if (layer_xwidth.at(i) > 60 && layer_ywidth.at(i) > 60)
+                shower_layer++;
+        }
+    	return shower_layer;
+    }, {"layer_xwidth", "layer_ywidth"})
+    .Define("hit_layer", [] (vector<Int_t> layer)
+    {
+        Double_t hit_layer = 0;
+        unordered_map<Int_t, Int_t> map_layer_hit;
+        for (Double_t i : layer)
+            map_layer_hit[i]++;
+        for (Int_t i = 0; i < nlayer; i++)
+        {
+            if (map_layer_hit.count(i) > 0)
                 hit_layer++;
-		}
-		return hit_layer;
-	}, {"layer"})
-	.Define("shower_layer_ratio", "shower_layer / hit_layer")
-	.Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)
+        }
+        return hit_layer;
+    }, {"layer"})
+    .Define("shower_layer_ratio", "shower_layer / hit_layer")
+    .Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)
 	{
         const Double_t bias = 342.55;
         const Double_t width = 40.3;
@@ -369,20 +369,39 @@ Int_t PIDTool::TrainBDT()
 {
     TMVA::Tools::Instance();
 
-	unordered_map<TTree*, TString> tsignal;
-	unordered_map<TTree*, TString> ttest;
-	for (auto i : signal)
+   	unordered_map<TTree*, TString> tr_sig;
+    unordered_map<TTree*, TString> tr_bkg;
+   	unordered_map<TTree*, TString> te_sig;
+    unordered_map<TTree*, TString> te_bkg;
+
+	for (auto i : train_signal)
 	{
 		TFile* f = TFile::Open(i.first.first, "READ");
 		TTree* t = (TTree*)f->Get(i.first.second);
-		tsignal.insert(pair<TTree*, TString>(t, i.second));
+		tr_sig.insert(pair<TTree*, TString>(t, i.second));
 	}
-	for (auto j : test)
+
+    for (auto j : train_bkg)
+    {
+        TFile* f = TFile::Open(j.first.first, "READ");
+        TTree* t = (TTree*)f->Get(j.first.second);
+        tr_bkg.insert(pair<TTree*, TString>(t, j.second));
+    }
+
+	for (auto k : test_signal)
 	{
-		TFile* f = TFile::Open(j.first.first, "READ");
-		TTree* t = (TTree*)f->Get(j.first.second);
-		ttest.insert(pair<TTree*, TString>(t, j.second));
+		TFile* f = TFile::Open(k.first.first, "READ");
+		TTree* t = (TTree*)f->Get(k.first.second);
+		te_sig.insert(pair<TTree*, TString>(t, k.second));
 	}
+
+    for (auto l : test_bkg)
+    {
+        TFile* f = TFile::Open(l.first.first, "READ");
+        TTree* t = (TTree*)f->Get(l.first.second);
+        te_bkg.insert(pair<TTree*, TString>(t, l.second));
+    }
+
     // Create a ROOT output file where TMVA will store ntuples, histograms, etc.
     TString outfileName( "TMVAMulticlass.root" );
     TFile* outputFile = TFile::Open( outfileName, "RECREATE" );
@@ -391,17 +410,27 @@ Int_t PIDTool::TrainBDT()
                                                "!V:!Silent:Color:DrawProgressBar:Transformations=I;D;P;G,D:AnalysisType=multiclass" );
 
     TMVA::DataLoader* dataloader = new TMVA::DataLoader("dataset");
+
 	for (auto i : var)
 		dataloader->AddVariable(i.first, i.second);
+
     // You can add an arbitrary number of signal or background trees
-    for (auto i : tsignal)
-        dataloader->AddTree(i.first, i.second, 1.0, "", TMVA::Types::kTraining);
-	for (auto j : ttest)
-		dataloader->AddTree(j.first, j.second, 1.0, "", TMVA::Types::kTesting);
+    for (auto i : tr_sig)
+        dataloader->AddSignalTree(i.first, 1.0, TMVA::Types::kTraining);
+
+    for (auto j : tr_bkg)
+        dataloader->AddBackgroundTree(j.first, 1.0, TMVA::Types::kTraining);
+
+    for (auto k : te_sig)
+        dataloader->AddSignalTree(k.first, 1.0, TMVA::Types::kTesting);
+
+    for (auto l : te_bkg)
+        dataloader->AddBackgroundTree(l.first, 1.0, TMVA::Types::kTesting);
 
     dataloader->PrepareTrainingAndTestTree( "", "SplitMode=Random:NormMode=NumEvents:!V" );
 
-	factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=1000:BoostType=Grad:Shrinkage=0.10:UseBaggedBoost:BaggedSampleFraction=0.50:nCuts=20:MaxDepth=2");
+    factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=1000:BoostType=Grad:Shrinkage=0.10:UseBaggedBoost:BaggedSampleFraction=0.50:nCuts=20:MaxDepth=2");
+
     // Now you can ask the factory to train, test, and evaluate the MVAs
     //
     // Train MVAs using the set of training events
@@ -431,44 +460,44 @@ Int_t PIDTool::TrainBDT()
 
 Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 {
-	ROOT::EnableImplicitMT();
-	string outname = fname;
-	outname = outname.substr(outname.find_last_of('/') + 1);
-	outname = "bdt_" + outname;
-	// This loads the library
-	TMVA::Tools::Instance();
+    ROOT::EnableImplicitMT();
+    string outname = fname;
+    outname = outname.substr(outname.find_last_of('/') + 1);
+    outname = "bdt_" + outname;
+    // This loads the library
+    TMVA::Tools::Instance();
 
-	// Default MVA methods to be trained + tested
-	std::map<std::string, Int_t> Use;
+    // Default MVA methods to be trained + tested
+    std::map<std::string, Int_t> Use;
 
-	// Cut optimisation
+    // Cut optimisation
     Use["BDTG"] = 1;
-	std::cout << "==> Start TMVAMulticlassApplication" << std::endl;
-	TMVA::Reader* reader = new TMVA::Reader( "!Color:!Silent" );
-//	Float_t bdt_E_dep;
+    std::cout << "==> Start TMVAMulticlassApplication" << std::endl;
+    TMVA::Reader* reader = new TMVA::Reader( "!Color:!Silent" );
+//    Float_t bdt_E_dep;
     Float_t bdt_Hits_no;
-	Float_t bdt_Shower_density;
-	Float_t bdt_Shower_layer_ratio;
-	Float_t bdt_Shower_length;
-	Float_t bdt_Shower_radius;
-	Float_t	bdt_Shower_start;
+    Float_t bdt_Shower_density;
+    Float_t bdt_Shower_layer_ratio;
+    Float_t bdt_Shower_length;
+    Float_t bdt_Shower_radius;
+    Float_t	bdt_Shower_start;
 
-//	reader->AddVariable("E_dep",              &bdt_E_dep);
-	reader->AddVariable("Hits_no",            &bdt_Hits_no);
-	reader->AddVariable("Shower_density",     &bdt_Shower_density);
-	reader->AddVariable("Shower_layer_ratio", &bdt_Shower_layer_ratio);
-	reader->AddVariable("Shower_length",      &bdt_Shower_length);
-	reader->AddVariable("Shower_radius",      &bdt_Shower_radius);
-	reader->AddVariable("Shower_start",       &bdt_Shower_start);
+//    reader->AddVariable("E_dep",              &bdt_E_dep);
+    reader->AddVariable("Hits_no",            &bdt_Hits_no);
+    reader->AddVariable("Shower_density",     &bdt_Shower_density);
+    reader->AddVariable("Shower_layer_ratio", &bdt_Shower_layer_ratio);
+    reader->AddVariable("Shower_length",      &bdt_Shower_length);
+    reader->AddVariable("Shower_radius",      &bdt_Shower_radius);
+    reader->AddVariable("Shower_start",       &bdt_Shower_start);
 
-	reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
-	cout << "Booked" << endl;
-	vector<string> rdf_input = { /*"E_dep", */ "Hits_no", "Shower_density", "Shower_layer_ratio", "Shower_length", "Shower_radius", "Shower_start" };
+    reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
+    cout << "Booked" << endl;
+    vector<string> rdf_input = { /*"E_dep", */ "Hits_no", "Shower_density", "Shower_layer_ratio", "Shower_length", "Shower_radius", "Shower_start" };
 
-	ROOT::RDataFrame df(tname, fname);
+    ROOT::RDataFrame df(tname, fname);
 
-	auto bdtout = df.Define("BDT_pi_plus", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
-	{
+    auto bdtout = df.Define("BDT_pi", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
+    {
 //        bdt_E_dep              = e;
         bdt_Hits_no            = nh;
         bdt_Shower_density     = d;
@@ -476,10 +505,11 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         bdt_Shower_length      = l;
         bdt_Shower_radius      = r;
         bdt_Shower_start       = s;
-		return (reader->EvaluateMulticlass( "BDTG method" ))[0];
-	}, rdf_input)
-	.Define("BDT_mu_plus", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
-	{
+        return (reader->EvaluateMulticlass( "BDTG method" ))[0];
+    }, rdf_input)
+    /*
+    .Define("BDT_bkg", [&](Double_t e, long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
+    {
 //        bdt_E_dep              = e;
         bdt_Hits_no            = nh;
         bdt_Shower_density     = d;
@@ -487,19 +517,9 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         bdt_Shower_length      = l;
         bdt_Shower_radius      = r;
         bdt_Shower_start       = s;
-		return (reader->EvaluateMulticlass( "BDTG method" ))[1];
-	}, rdf_input)
-	.Define("BDT_e_plus", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
-	{
-//        bdt_E_dep              = e;
-        bdt_Hits_no            = nh;
-        bdt_Shower_density     = d;
-        bdt_Shower_layer_ratio = lr;
-        bdt_Shower_length      = l;
-        bdt_Shower_radius      = r;
-        bdt_Shower_start       = s;
-		return (reader->EvaluateMulticlass( "BDTG method" ))[2];
-	}, rdf_input)
-	.Snapshot(tname, outname);
-	return 1;
+        return (reader->EvaluateMulticlass( "BDTG method" ))[1];
+    }, rdf_input)
+    */
+    .Snapshot(tname, outname);
+    return 1;
 }
