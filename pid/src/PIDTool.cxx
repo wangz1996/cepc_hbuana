@@ -1,5 +1,40 @@
 #include "PIDTool.h"
 
+Int_t NHScaleV2(RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z, Int_t const& RatioX, Int_t const& RatioY, Int_t const& RatioZ)
+{
+    Int_t ReScaledNH = 0;
+    Int_t tmpI = 0;
+    Int_t tmpJ = 0;
+    Int_t tmpK = 0;
+    Double_t tmpEn = 0;
+    Int_t NewCellID0 = 0;
+    const Int_t NumHit = pos_x.size();
+
+    std::map<Double_t, Double_t> testIDtoEnergy;
+
+    for (Int_t i = 0; i < NumHit; i++)
+    {
+        Double_t x = pos_x.at(i);
+        Double_t y = pos_y.at(i);
+        Double_t z = pos_z.at(i);
+
+        tmpI = (Int_t(x / 40.2996) + Int_t(fabs(x) / x)) / RatioX;
+        tmpJ = (Int_t(y / 39.9874) + Int_t(fabs(y) / y)) / RatioY;
+        tmpK = Int_t(z / 26) / RatioZ;
+        tmpEn = 1;
+
+        NewCellID0 = (tmpK << 24) + (tmpJ << 12) + tmpI;
+
+        if (testIDtoEnergy.find(NewCellID0) == testIDtoEnergy.end())
+            testIDtoEnergy[NewCellID0] = tmpEn;
+        else
+            testIDtoEnergy[NewCellID0] += tmpEn;
+    }
+
+    ReScaledNH = testIDtoEnergy.size();
+    return ReScaledNH;
+}
+
 PIDTool::PIDTool()
 {
 }
@@ -105,6 +140,8 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 				break;
 			}
 		}
+        if (shower_end == 42)
+            shower_end = 40;
 		return shower_end;
 	},{"layer_hitcell","layer_rms","shower_start"})
 	.Define("layer_xwidth",[](vector<double> Hit_X,vector<int> Hit_PSDID)
@@ -262,6 +299,22 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             return radius;
         }
     }, {"Hit_X", "Hit_Y", "Hit_Z", "shower_start", "shower_end"})
+    .Define("FD_2D", [] (RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z)
+    {
+        Double_t fd = 0;
+        const Int_t num = 10;
+        const Int_t nhit = pos_x.size();
+        Int_t NResizeHit[num] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        Int_t scale[num] = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 20 };
+        for (Int_t i = 0; i < num; i++)
+        {
+            NResizeHit[i] = NHScaleV2(pos_x, pos_y, pos_z, scale[i], scale[i], 1);
+            fd += 0.1 * TMath::Log((Double_t)nhit / NResizeHit[i]) / TMath::Log((Double_t)scale[i]);
+        }
+        if (pos_x.size() == 0)
+            fd = -1;
+        return fd;
+    }, {"Hit_X", "Hit_Y", "Hit_Z"})
 	.Define("hclx",[](vector<int> CellID,vector<double> Hit_X,vector<double> Hit_Y,vector<double> Hit_Z,vector<double> Hit_Energy)
 	{
 		vector<double> hclx;
