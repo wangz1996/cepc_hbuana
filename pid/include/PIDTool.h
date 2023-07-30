@@ -32,34 +32,55 @@ using namespace ROOT;
 class PIDTool
 {
 public:
-	PIDTool();
-	~PIDTool();
+    PIDTool();
+    ~PIDTool();
 
-	Int_t GenNtuple(const string& file, const string& tree);
+    Int_t GenNtuple(const string& file, const string& tree);
 
-	void AddSignal(const string& file, const string& tree, const string& particle_name)
-	{
-		signal.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
-	}
+    void AddTrainSig(const string& file, const string& tree, const string& particle_name)
+    {
+        train_sig.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
+    }
 
-	void AddVar(const string& v, const Char_t& type)
-	{
-		var.insert(pair<TString, Char_t>(TString(v), type));
-	}
+    void AddTrainBkg(const string& file, const string& tree, const string& particle_name)
+    {
+        train_bkg.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
+    }
 
-	Int_t TrainBDT();
-	Int_t BDTNtuple(const string& fname, const string& tname);
+    void AddTestSig(const string& file, const string& tree, const string& particle_name)
+    {
+        test_sig.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
+    }
 
-	void Clear()
-	{
-		var.clear();
-		signal.clear();
-	}
+    void AddTestBkg(const string& file, const string& tree, const string& particle_name)
+    {
+        test_bkg.insert(pair<pair<TString, TString>, TString>(pair<TString, TString>(TString(file), TString(tree)), TString(particle_name)));
+    }
+
+    void AddVar(const string& v, const Char_t& type)
+    {
+        var.insert(pair<TString, Char_t>(TString(v), type));
+    }
+
+    Int_t TrainBDT();
+    Int_t BDTNtuple(const string& fname, const string& tname);
+
+    void Clear()
+    {
+        var.clear();
+        train_sig.clear();
+        train_bkg.clear();
+        test_sig.clear();
+        test_bkg.clear();
+    }
 
 
 private:
-	map<TString, Char_t> var;
-	map<pair<TString, TString>, TString> signal;
+    map<TString, Char_t> var;
+    map<pair<TString, TString>, TString> train_sig;
+    map<pair<TString, TString>, TString> train_bkg;
+    map<pair<TString, TString>, TString> test_sig;
+    map<pair<TString, TString>, TString> test_bkg;
 };
 
 #endif

@@ -35,11 +35,15 @@ Int_t main(Int_t argc, char* argv[])
     if (file != "" && tree != "")
         pt->GenNtuple(file, tree);
 
-    if (train == 1 && tree != "")
+    if (train == 1)
     {
+        pt->AddVar("COG_X",              'D');
+        pt->AddVar("COG_Y",              'D');
+        pt->AddVar("COG_Z",              'D');
         pt->AddVar("Edep",               'D');
         pt->AddVar("Emean",              'D');
         pt->AddVar("FD_2D",              'D');
+        pt->AddVar("clusterE1E9",        'D');
         pt->AddVar("hit_layer",          'D');
         pt->AddVar("nhits",              'I');
         pt->AddVar("ntrack",             'D');
@@ -53,9 +57,16 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("ywidth",             'D');
         pt->AddVar("zwidth",             'D');
 
+        pt->AddTrainSig("/lustre/collider/chenjiyuan/hbuana/build/train/pid_train_pion.root",       "Calib_Hit", "pion");
+        pt->AddTestSig ("/lustre/collider/chenjiyuan/hbuana/build/train/pid_test_pion.root",        "Calib_Hit", "pion");
+        pt->AddTrainBkg("/lustre/collider/chenjiyuan/hbuana/build/train/pid_train_background.root", "Calib_Hit", "background");
+        pt->AddTestBkg ("/lustre/collider/chenjiyuan/hbuana/build/train/pid_test_background.root",  "Calib_Hit", "background");
+
+        /*
         pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_pion.root",   tree, "pion");
         pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_muon.root",   tree, "muon");
         pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_e.root",      tree, "e");
+        */
 
         pt->TrainBDT();
 	}

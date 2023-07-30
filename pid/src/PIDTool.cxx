@@ -480,13 +480,39 @@ Int_t PIDTool::TrainBDT()
 {
     TMVA::Tools::Instance();
 
-    unordered_map<TTree*, TString> tsignal;
-    for (auto i : signal)
+    unordered_map<TTree*, TString> trsig;
+    unordered_map<TTree*, TString> trbkg;
+    unordered_map<TTree*, TString> tesig;
+    unordered_map<TTree*, TString> tebkg;
+
+    for (auto i : train_sig)
     {
         TFile* f = TFile::Open(i.first.first, "READ");
-        TTree* t = (TTree*)f->Get(i.first.second);
-        tsignal.insert(pair<TTree*, TString>(t, i.second));
+        TTree* t = (TTree*) f->Get(i.first.second);
+        trsig.insert(pair<TTree*, TString>(t, i.second));
     }
+
+    for (auto j : train_bkg)
+    {
+        TFile* f = TFile::Open(j.first.first, "READ");
+        TTree* t = (TTree*) f->Get(j.first.second);
+        trbkg.insert(pair<TTree*, TString>(t, j.second));
+    }
+
+    for (auto k : test_sig)
+    {
+        TFile* f = TFile::Open(k.first.first, "READ");
+        TTree* t = (TTree*) f->Get(k.first.second);
+        tesig.insert(pair<TTree*, TString>(t, k.second));
+    }
+
+    for (auto l : test_bkg)
+    {
+        TFile* f = TFile::Open(l.first.first, "READ");
+        TTree* t = (TTree*) f->Get(l.first.second);
+        tebkg.insert(pair<TTree*, TString>(t, l.second));
+    }
+
     // Create a ROOT output file where TMVA will store ntuples, histograms, etc.
     TString outfileName( "TMVAMulticlass.root" );
     TFile* outputFile = TFile::Open( outfileName, "RECREATE" );
@@ -497,9 +523,17 @@ Int_t PIDTool::TrainBDT()
     TMVA::DataLoader* dataloader = new TMVA::DataLoader("dataset");
     for (auto i : var)
         dataloader->AddVariable(i.first, i.second);
+
     // You can add an arbitrary number of signal or background trees
-    for (auto i : tsignal)
-        dataloader->AddTree(i.first, i.second);
+    for (auto i : trsig)
+        dataloader->AddSignalTree(i.first, 1.0, TMVA::Types::kTraining);
+    for (auto j : trbkg)
+        dataloader->AddBackgroundTree(j.first, 1.0, TMVA::Types::kTraining);
+    for (auto k : tesig)
+        dataloader->AddSignalTree(k.first, 1.0, TMVA::Types::kTesting);
+    for (auto l : tebkg)
+        dataloader->AddBackgroundTree(l.first, 1.0, TMVA::Types::kTesting);
+
     dataloader->PrepareTrainingAndTestTree( "", "SplitMode=Random:NormMode=NumEvents:!V" );
 
     factory->BookMethod( dataloader,  TMVA::Types::kBDT, "BDTG", "!H:!V:NTrees=1000:BoostType=Grad:Shrinkage=0.10:UseBaggedBoost:BaggedSampleFraction=0.50:nCuts=20:MaxDepth=2");
@@ -546,9 +580,13 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
     Use["BDTG"] = 1;
     std::cout << "==> Start TMVAMulticlassApplication" << std::endl;
     TMVA::Reader* reader = new TMVA::Reader( "!Color:!Silent" );
+    Float_t bdt_COG_X;
+    Float_t bdt_COG_Y;
+    Float_t bdt_COG_Z;
     Float_t bdt_Edep;
     Float_t bdt_Emean;
     Float_t bdt_FD_2D;
+    Float_t bdt_clusterE1E9;
     Float_t bdt_hit_layer;
     Float_t bdt_nhits;
     Float_t	bdt_ntrack;
@@ -563,8 +601,12 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
     Float_t bdt_zwidth;
 
     reader->AddVariable("Edep",               &bdt_Edep);
+    reader->AddVariable("COG_X",              &bdt_COG_X);
+    reader->AddVariable("COG_Y",              &bdt_COG_Y);
+    reader->AddVariable("COG_Z",              &bdt_COG_Z);
     reader->AddVariable("Emean",              &bdt_Emean);
     reader->AddVariable("FD_2D",              &bdt_FD_2D);
+    reader->AddVariable("clusterE1E9",        &bdt_clusterE1E9);
     reader->AddVariable("hit_layer",          &bdt_hit_layer);
     reader->AddVariable("nhits",              &bdt_nhits);
     reader->AddVariable("ntrack",             &bdt_ntrack);
@@ -580,15 +622,19 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 
     reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
     cout << "Booked" << endl;
-    vector<string> rdf_input = { "Edep", "Emean", "FD_2D", "hit_layer", "nhits", "ntrack", "shower_density", "shower_end", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "xwidth", "ywidth", "zwidth"};
+    vector<string> rdf_input = { "COG_X", "COG_Y", "COG_Z", "Edep", "Emean", "FD_2D", "clusterE1E9", "hit_layer", "nhits", "ntrack", "shower_density", "shower_end", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "xwidth", "ywidth", "zwidth"};
 
     ROOT::RDataFrame df(tname, fname);
 
-    auto bdtout = df.Define("BDT_pi_plus", [&](Double_t e, Double_t em, Double_t fd, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    auto bdtout = df.Define("BDT_pi_plus", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
+        bdt_COG_X              = cogx;
+        bdt_COG_Y              = cogy;
+        bdt_COG_Z              = cogz;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd;
+        bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
         bdt_ntrack             = n;
@@ -604,11 +650,15 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[1];
     }, rdf_input)
-    .Define("BDT_mu_plus", [&](Double_t e, Double_t em, Double_t fd, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("BDT_mu_plus", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
+        bdt_COG_X              = cogx;
+        bdt_COG_Y              = cogy;
+        bdt_COG_Z              = cogz;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd;
+        bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
         bdt_ntrack             = n;
@@ -624,11 +674,15 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[2];
     }, rdf_input)
-    .Define("BDT_e_plus", [&](Double_t e, Double_t em, Double_t fd, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("BDT_e_plus", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
+        bdt_COG_X              = cogx;
+        bdt_COG_Y              = cogy;
+        bdt_COG_Z              = cogz;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd;
+        bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
         bdt_ntrack             = n;
@@ -645,13 +699,17 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[3];
     }, rdf_input)
     /*
-    .Define("bdt_proton", [&](Double_t e, Double_t em, Double_t fd, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("bdt_proton", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
+        bdt_COG_X              = cogx;
+        bdt_COG_Y              = cogy;
+        bdt_COG_Z              = cogz;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd;
-        bdt_nhits              = nh;
+        bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
+        bdt_nhits              = nh;
         bdt_ntrack             = n;
         bdt_shower_density     = d;
         bdt_shower_end         = se;
