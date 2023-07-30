@@ -255,10 +255,8 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         }
         for (Int_t i = 0; i < nhits; i++)
         {
-            /*
-            if (Digi_Hit_Energy.at(i) < 0.1)
+            if (Digi_Hit_Energy.at(i) == 0.0)
                 continue;
-            */
             Int_t x = round((Hit_X.at(i) + bias) / width);
             Int_t y = round((Hit_Y.at(i) + bias) / width);
             Int_t z = layer.at(i);
