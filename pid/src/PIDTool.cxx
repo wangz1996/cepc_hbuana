@@ -53,14 +53,14 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     string outname = file;
     outname = outname.substr(outname.find_last_of('/') + 1);
     outname = "pid_" + outname;
-    auto fout = dm->Define("nhits", "Digi_Hit_Energy.size()")
-    .Define("layer", [] (vector<Double_t> Hit_Z)
+    auto fout = dm->Define("nhits", "(Int_t) Hit_X.size()")
+    .Define("layer", [] (vector<Double_t> Hit_Z, Int_t nhits)
     {
         vector<Int_t> layer;
-        for (Int_t i = 0; i < Hit_Z.size(); i++)
+        for (Int_t i = 0; i < nhits; i++)
             layer.emplace_back((Int_t) Hit_Z.at(i) / thick);
         return layer;
-    }, {"Hit_Z"})
+    }, {"Hit_Z", "nhits"})
     .Define("xwidth", [] (vector<Double_t> Hit_X)
     {
         TH1D* h1 = new TH1D("h1", "", 100, -400, 400);
@@ -88,12 +88,18 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         delete h1;
         return zwidth;
     }, {"Hit_Z"})
-    .Define("Edep", "accumulate(Digi_Hit_Energy.begin(), Digi_Hit_Energy.end(), 0)")
+    .Define("Edep", [] (vector<Double_t> Digi_Hit_Energy)
+    {
+        Double_t sum = 0;
+        for (Double_t i : Digi_Hit_Energy)
+            sum += i;
+        return sum;
+    }, {"Digi_Hit_Energy"})
     .Define("Emean", "Edep / nhits")
-    .Define("layer_hitcell", [] (vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)
+    .Define("layer_hitcell", [] (vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, Int_t nhits)
     {
         vector<Int_t> layer_HitCell(nlayer);
-        for (Int_t i = 0; i < layer.size(); i++)
+        for (Int_t i = 0; i < nhits; i++)
         {
             Int_t ilayer = layer.at(i);
             if (Digi_Hit_Energy.at(i) < 0.1)
@@ -101,14 +107,14 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             layer_HitCell.at(ilayer)++;
         }
         return layer_HitCell;
-    }, {"layer", "Digi_Hit_Energy"})
-    .Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)->vector<Double_t>
+    }, {"layer", "Digi_Hit_Energy", "nhits"})
+    .Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, Int_t nhits)->vector<Double_t>
     {
         vector<Double_t> layer_rms(nlayer);
         vector<TH2D*> hvec;
         for (Int_t i = 0; i < nlayer; i++)
             hvec.emplace_back(new TH2D("h" + TString(to_string(i)) + "_rms", "Layer RMS", 100, -400, 400, 100, -400, 400));
-        for (Int_t i = 0; i < Hit_X.size(); i++)
+        for (Int_t i = 0; i < nhits; i++)
         {
             Int_t ilayer = layer.at(i);
             hvec.at(ilayer)->Fill(Hit_X.at(i), Hit_Y.at(i), Digi_Hit_Energy.at(i));
@@ -123,7 +129,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         }
         vector<TH2D*>().swap(hvec);
         return layer_rms;
-    }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy"})
+    }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy", "nhits"})
     .Define("shower_start", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms)
     {
         Int_t shower_start = nlayer + 2;
@@ -154,12 +160,11 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             shower_end = nlayer;
         return shower_end;
     }, {"layer_hitcell", "layer_rms", "shower_start"})
-    .Define("shower_radius", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, Int_t beginning, Int_t ending)
+    .Define("shower_radius", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, Int_t beginning, Int_t ending, Int_t nhits)
     {
         LongDouble_t d2 = 0;
         Int_t hits = 0;
-        const Int_t n = Hit_X.size();
-        for (Int_t i = 0; i < n; i++)
+        for (Int_t i = 0; i < nhits; i++)
         {
             if (layer.at(i) >= beginning && layer.at(i) < ending)
             {
@@ -171,14 +176,14 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             return 0.0;
         Double_t radius = TMath::Sqrt(d2 / hits);
         return radius;
-    }, {"Hit_X", "Hit_Y", "layer", "shower_start", "shower_end"})
-    .Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Int_t> layer)
+    }, {"Hit_X", "Hit_Y", "layer", "shower_start", "shower_end", "nhits"})
+    .Define("layer_xwidth", [] (vector<Double_t> Hit_X, vector<Int_t> layer, Int_t nhits)
     {
         vector<Double_t> layer_xwidth(nlayer);
         vector<TH1D*> h;
         for (Int_t l = 0; l < nlayer; l++)
             h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
-        for (Int_t i = 0; i < layer.size(); i++)
+        for (Int_t i = 0; i < nhits; i++)
         {
             Int_t ilayer = layer.at(i);
             h.at(ilayer)->Fill(Hit_X.at(i));
@@ -190,14 +195,14 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         }
         vector<TH1D*>().swap(h);
         return layer_xwidth;
-    }, {"Hit_X", "layer"})
-    .Define("layer_ywidth", [] (vector<Double_t> Hit_Y, vector<Int_t> layer)
+    }, {"Hit_X", "layer", "nhits"})
+    .Define("layer_ywidth", [] (vector<Double_t> Hit_Y, vector<Int_t> layer, Int_t nhits)
     {
         vector<Double_t> layer_ywidth(nlayer);
         vector<TH1D*> h;
         for (Int_t l = 0; l < nlayer; l++)
             h.emplace_back(new TH1D(TString("h") + TString(to_string(l)), "test", 100, -400, 400));
-        for (Int_t i = 0; i < layer.size(); i++)
+        for (Int_t i = 0; i < nhits; i++)
         {
             Int_t ilayer = layer.at(i);
             h.at(ilayer)->Fill(Hit_Y.at(i));
@@ -209,7 +214,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         }
         vector<TH1D*>().swap(h);
         return layer_ywidth;
-    }, {"Hit_Y", "layer"})
+    }, {"Hit_Y", "layer", "nhits"})
     .Define("shower_layer", [] (vector<Double_t> layer_xwidth, vector<Double_t> layer_ywidth)
     {
         Double_t shower_layer = 0;
@@ -234,42 +239,88 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         return hit_layer;
     }, {"layer"})
     .Define("shower_layer_ratio", "shower_layer / hit_layer")
-    .Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)
+    .Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, Int_t nhits)
     {
         const Double_t bias = 342.55;
         const Double_t width = 40.3;
         Double_t shower_density = 0.0;
         unordered_map<Int_t, Int_t> map_CellID;
-        for (Int_t j = 0; j < Hit_X.size(); j++)
+        for (Int_t j = 0; j < nhits; j++)
         {
-            Int_t x = (Hit_X.at(j) + bias) / width;
-            Int_t y = (Hit_Y.at(j) + bias) / width;
+            Int_t x = round((Hit_X.at(j) + bias) / width);
+            Int_t y = round((Hit_Y.at(j) + bias) / width);
             Int_t z = layer.at(j);
             Int_t index = z * 100000 + x * 100 + y;
-            map_CellID[index] = 1;
+            map_CellID[index] += 1;
         }
-        for (Int_t i = 0; i < Hit_X.size(); i++)
+        for (Int_t i = 0; i < nhits; i++)
         {
+            /*
             if (Digi_Hit_Energy.at(i) < 0.1)
                 continue;
-            Int_t x = (Hit_X.at(i) + bias) / width;
-            Int_t y = (Hit_Y.at(i) + bias) / width;
+            */
+            Int_t x = round((Hit_X.at(i) + bias) / width);
+            Int_t y = round((Hit_Y.at(i) + bias) / width);
             Int_t z = layer.at(i);
-            for (Int_t iz = z - 1; iz <= z + 1; iz++)
+            for (Int_t ix = x - 1; ix <= x + 1; ix++)
             {
-                for (Int_t ix = x - 1; ix <= x + 1; ix++)
+                if (ix < 0 || ix > 17)
+                    continue;
+                for (Int_t iy = y - 1; iy <= y + 1; iy++)
                 {
-                    for (Int_t iy = y - 1; iy <= y + 1; iy++)
-                    {
-                        Int_t tmp = iz * 100000 + ix * 100 + iy;
-                        shower_density += map_CellID[tmp];
-                    }
+                    if (iy < 0 || iy > 17)
+                        continue;
+                    Int_t tmp = z * 100000 + ix * 100 + iy;
+                    shower_density += map_CellID[tmp];
                 }
             }
         }
-        shower_density /= Hit_X.size();
+        shower_density /= nhits;
         return shower_density;
-    }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy"})
+    }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy", "nhits"})
+    .Define("clusterE1E9", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, Int_t nhits)
+    {
+        if (nhits == 0)
+            return 0.0;
+        const Double_t bias = 342.55;
+        const Double_t width = 40.3;
+        Double_t clusterE1E9 = 0.0;
+        unordered_map<Int_t, Double_t> map_cellid;
+        for (Int_t i = 0; i < nhits; i++)
+        {
+            Int_t x = round((Hit_X.at(i) + bias) / width);
+            Int_t y = round((Hit_Y.at(i) + bias) / width);
+            Int_t z = layer.at(i);
+            Int_t index = z * 100000 + x * 100 + y;
+            map_cellid[index] += Digi_Hit_Energy.at(i);
+        }
+        for (Int_t j = 0; j < nhits; j++)
+        {
+            if (Digi_Hit_Energy.at(j) == 0.0)
+                continue;
+            Int_t x = round((Hit_X.at(j) + bias) / width);
+            Int_t y = round((Hit_Y.at(j) + bias) / width);
+            Int_t z = layer.at(j);
+            Int_t index = z * 100000 + x * 100 + y;
+            Double_t tempE1 = map_cellid[index];
+            Double_t tempE9 = map_cellid[index];
+            for (Int_t ix = x - 1; ix <= x + 1; ix++)
+            {
+                if (ix < 0 || ix > 17)
+                    continue;
+                for (Int_t iy = y - 1; iy <= y + 1; iy++)
+                {
+                    if (iy < 0 || iy > 17)
+                        continue;
+                    Int_t tmp = z * 100000 + ix * 100 + iy;
+                    tempE9 += map_cellid[tmp];
+                }
+            }
+            clusterE1E9 += tempE1 / tempE9;
+        }
+        clusterE1E9 /= nhits;
+        return clusterE1E9;
+    }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy", "nhits"})
     .Define("shower_length", [] (vector<Double_t> layer_rms, Int_t shower_start)
     {
         Double_t shower_length = 0.0;
@@ -291,22 +342,45 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             shower_length = 0.0;
         return shower_length;
     }, {"layer_rms", "shower_start"})
-    .Define("FD_2D", [] (RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z)
+    .Define("FD_2D", [] (RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z, Int_t nhits)
     {
         Double_t fd = 0;
         const Int_t num = 12;
-        const Int_t nhit = pos_x.size();
         Int_t NResizeHit[num] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         Int_t scale[num] = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30 };
         for (Int_t i = 0; i < num; i++)
         {
             NResizeHit[i] = NHScaleV2(pos_x, pos_y, pos_z, scale[i], scale[i], 1);
-            fd += 0.1 * TMath::Log((Double_t)nhit / NResizeHit[i]) / TMath::Log((Double_t)scale[i]);
+            fd += 0.1 * TMath::Log((Double_t) nhits / NResizeHit[i]) / TMath::Log((Double_t)scale[i]);
         }
         if (pos_x.size() == 0)
             fd = -1;
         return fd;
-    }, {"Hit_X", "Hit_Y", "Hit_Z"})
+    }, {"Hit_X", "Hit_Y", "Hit_Z", "nhits"})
+    .Define("COG_X", [] (vector<Double_t> Hit_X, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
+    {
+        Double_t cog_x = 0;
+        for (Int_t i = 0; i < nhits; i++)
+            cog_x += Hit_X.at(i) * Digi_Hit_Energy.at(i);
+        cog_x /= Edep;
+        return cog_x;
+    }, {"Hit_X", "Digi_Hit_Energy", "Edep", "nhits"})
+    .Define("COG_Y", [] (vector<Double_t> Hit_Y, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
+    {
+        Double_t cog_y = 0;
+        for (Int_t i = 0; i < nhits; i++)
+            cog_y += Hit_Y.at(i) * Digi_Hit_Energy.at(i);
+        cog_y /= Edep;
+        return cog_y;
+    }, {"Hit_Y", "Digi_Hit_Energy", "Edep", "nhits"})
+    .Define("COG_Z", [] (vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
+    {
+        Double_t cog_z = 0;
+        for (Int_t i = 0; i < nhits; i++)
+            cog_z += Hit_Z.at(i) * Digi_Hit_Energy.at(i);
+        cog_z /= Edep;
+        return cog_z;
+    }, {"Hit_Z", "Digi_Hit_Energy", "Edep", "nhits"})
     .Define("hclx", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
     {
         vector<Double_t> hclx;
@@ -349,27 +423,24 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     }, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
     // Below are time analyses (relevant data not stored)
     /*
-    .Define("time_mean_hit", [] (vector<Double_t> hit_time)
+    .Define("time_mean_hit", [] (vector<Double_t> hit_time, Int_t nhits)
     {
         Double_t tot = 0;
-        const Int_t hits = hit_time.size();
         for (Double_t& i : hit_time)
             tot += i;
-        return tot / hits;
-    }, {"Hit_Time"})
-    .Define("time_rms_hit", [] (vector<Double_t> hit_time)
+        return tot / nhits;
+    }, {"Hit_Time", "nhits"})
+    .Define("time_rms_hit", [] (vector<Double_t> hit_time, Int_t nhits)
     {
         Double_t tot2 = 0;
-        const Int_t hits = hit_time.size();
         for (Double_t& i : hit_time)
             tot2 += i * i;
-        return TMath::Sqrt(tot2 / hits);
-    }, {"Hit_Time"})
-    .Define("time_mean_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending)
+        return TMath::Sqrt(tot2 / nhits);
+    }, {"Hit_Time", "nhits"})
+    .Define("time_mean_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending, Int_t nhits)
     {
         Double_t tot = 0;
         Int_t hits = 0;
-        const Int_t n = hit_time.size();
         for (Int_t i = 0; i < n; i++)
         {
             if (layer.at(i) >= beginning && layer.at(i) < ending)
@@ -381,13 +452,12 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         if (hits == 0)
             return 0.0;
         else
-            return tot / hits;
-    }, {"Hit_Time", "layer", "shower_start", "shower_end"})
-    .Define("time_rms_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending)
+            return tot / nhits;
+    }, {"Hit_Time", "layer", "shower_start", "shower_end", "nhits"})
+    .Define("time_rms_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending, Int_t nhits)
     {
         Double_t tot2 = 0;
         Int_t hits = 0;
-        const Int_t n = hit_time.size();
         for (Int_t i = 0; i < n; i++)
         {
             if (layer.at(i) >= beginning && layer.at(i) < ending)
@@ -399,8 +469,8 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         if (hits == 0)
             return 0.0;
         else
-            return tot2 / hits;
-    }, {"Hit_Time", "layer", "shower_start", "shower_end"})
+            return tot2 / nhits;
+    }, {"Hit_Time", "layer", "shower_start", "shower_end", "nhits"})
     */
     //.Range(1)
     .Snapshot(tree, outname);
