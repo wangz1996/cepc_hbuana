@@ -43,6 +43,7 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("Edep",               'D');
         pt->AddVar("Emean",              'D');
         pt->AddVar("FD_2D",              'D');
+        pt->AddVar("FD_3D",              'D');
         pt->AddVar("clusterE1E9",        'D');
         pt->AddVar("hit_layer",          'D');
         pt->AddVar("nhits",              'I');

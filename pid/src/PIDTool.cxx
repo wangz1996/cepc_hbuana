@@ -8,6 +8,9 @@ Int_t NHScaleV2(RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<D
     Int_t tmpK = 0;
     Double_t tmpEn = 0;
     Int_t NewCellID0 = 0;
+    const Double_t bias = -342.55;
+    const Double_t width = 40.3;
+    const Double_t thick = 30;
     const Int_t NumHit = pos_x.size();
 
     std::map<Double_t, Double_t> testIDtoEnergy;
@@ -18,9 +21,9 @@ Int_t NHScaleV2(RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<D
         Double_t y = pos_y.at(i);
         Double_t z = pos_z.at(i);
 
-        tmpI = (Int_t ((x + 342.55) / 40.3) + Int_t(TMath::Abs(x) / x)) / RatioX;
-        tmpJ = (Int_t ((y + 342.55) / 40.3) + Int_t(TMath::Abs(y) / y)) / RatioY;
-        tmpK = (Int_t)(z / 30) / RatioZ;
+        tmpI = (Int_t ((x - bias) / width) + Int_t(TMath::Abs(x) / x)) / RatioX;
+        tmpJ = (Int_t ((y - bias) / width) + Int_t(TMath::Abs(y) / y)) / RatioY;
+        tmpK = (Int_t)(z / thick) / RatioZ;
         tmpEn = 1;
 
         NewCellID0 = (tmpK << 24) + (tmpJ << 12) + tmpI;
@@ -378,18 +381,33 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     }, {"layer_rms", "shower_start"})
     .Define("FD_2D", [] (RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z, Int_t nhits)
     {
-        Double_t fd = 0;
-        const Int_t num = 15;
-        Int_t NResizeHit[num] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-        Int_t scale[num] = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30 };
+        Double_t fd_2d = 0;
+        vector<Int_t> scale = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30 };
+        const Int_t num = scale.size();
+        vector<Int_t> NResizeHit(num);
         for (Int_t i = 0; i < num; i++)
         {
-            NResizeHit[i] = NHScaleV2(pos_x, pos_y, pos_z, scale[i], scale[i], 1);
-            fd += 0.1 * TMath::Log((Double_t) nhits / NResizeHit[i]) / TMath::Log((Double_t)scale[i]);
+            NResizeHit.at(i) = NHScaleV2(pos_x, pos_y, pos_z, scale.at(i), scale.at(i), 1);
+            fd_2d += 0.1 * TMath::Log((Double_t) nhits / NResizeHit.at(i)) / TMath::Log((Double_t) scale.at(i));
         }
         if (pos_x.size() == 0)
-            fd = -1;
-        return fd;
+            fd_2d = -1;
+        return fd_2d;
+    }, {"Hit_X", "Hit_Y", "Hit_Z", "nhits"})
+    .Define("FD_3D", [] (RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z, Int_t nhits)
+    {
+        Double_t fd_3d = 0;
+        vector<Int_t> scale = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30 };
+        const Int_t num = scale.size();
+        vector<Int_t> NResizeHit(num);
+        for (Int_t i = 0; i < num; i++)
+        {
+            NResizeHit.at(i) = NHScaleV2(pos_x, pos_y, pos_z, scale.at(i), scale.at(i), scale.at(i));
+            fd_3d += 0.1 * TMath::Log((Double_t) nhits / NResizeHit.at(i)) / TMath::Log((Double_t) scale.at(i));
+        }
+        if (pos_x.size() == 0)
+            fd_3d = -1;
+        return fd_3d;
     }, {"Hit_X", "Hit_Y", "Hit_Z", "nhits"})
     .Define("COG_X", [] (vector<Double_t> Hit_X, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
     {
@@ -622,6 +640,7 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
     Float_t bdt_Edep;
     Float_t bdt_Emean;
     Float_t bdt_FD_2D;
+    Float_t bdt_FD_3D;
     Float_t bdt_clusterE1E9;
     Float_t bdt_hit_layer;
     Float_t bdt_nhits;
@@ -643,6 +662,7 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
     reader->AddVariable("COG_Z",              &bdt_COG_Z);
     reader->AddVariable("Emean",              &bdt_Emean);
     reader->AddVariable("FD_2D",              &bdt_FD_2D);
+    reader->AddVariable("FD_3D",              &bdt_FD_3D);
     reader->AddVariable("clusterE1E9",        &bdt_clusterE1E9);
     reader->AddVariable("hit_layer",          &bdt_hit_layer);
     reader->AddVariable("nhits",              &bdt_nhits);
@@ -660,18 +680,19 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 
     reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
     cout << "Booked" << endl;
-    vector<string> rdf_input = { "COG_X", "COG_Y", "COG_Z", "Edep", "Emean", "FD_2D", "clusterE1E9", "hit_layer", "nhits", "ntrack", "shower_density", "shower_end", "shower_layer", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "xwidth", "ywidth", "zwidth"};
+    vector<string> rdf_input = { "COG_X", "COG_Y", "COG_Z", "Edep", "Emean", "FD_2D", "FD_3D", "clusterE1E9", "hit_layer", "nhits", "ntrack", "shower_density", "shower_end", "shower_layer", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "xwidth", "ywidth", "zwidth"};
 
     ROOT::RDataFrame df(tname, fname);
 
-    auto bdtout = df.Define("BDT_pi", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    auto bdtout = df.Define("BDT_pi", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
         bdt_COG_X              = cogx;
         bdt_COG_Y              = cogy;
         bdt_COG_Z              = cogz;
         bdt_Edep               = e;
         bdt_Emean              = em;
-        bdt_FD_2D              = fd;
+        bdt_FD_2D              = fd2;
+        bdt_FD_3D              = fd3;
         bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
@@ -689,14 +710,15 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[1];
     }, rdf_input)
-    .Define("BDT_mu", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("BDT_mu", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
         bdt_COG_X              = cogx;
         bdt_COG_Y              = cogy;
         bdt_COG_Z              = cogz;
         bdt_Edep               = e;
         bdt_Emean              = em;
-        bdt_FD_2D              = fd;
+        bdt_FD_2D              = fd2;
+        bdt_FD_3D              = fd3;
         bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
@@ -714,14 +736,15 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[2];
     }, rdf_input)
-    .Define("BDT_e", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("BDT_e", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
         bdt_COG_X              = cogx;
         bdt_COG_Y              = cogy;
         bdt_COG_Z              = cogz;
         bdt_Edep               = e;
         bdt_Emean              = em;
-        bdt_FD_2D              = fd;
+        bdt_FD_2D              = fd2;
+        bdt_FD_3D              = fd3;
         bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
@@ -740,14 +763,15 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[3];
     }, rdf_input)
     /*
-    .Define("bdt_proton", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("bdt_proton", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
         bdt_COG_X              = cogx;
         bdt_COG_Y              = cogy;
         bdt_COG_Z              = cogz;
         bdt_Edep               = e;
         bdt_Emean              = em;
-        bdt_FD_2D              = fd;
+        bdt_FD_2D              = fd2;
+        bdt_FD_3D              = fd3;
         bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
