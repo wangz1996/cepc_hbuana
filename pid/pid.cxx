@@ -49,6 +49,7 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("ntrack",             'D');
         pt->AddVar("shower_density",     'D');
         pt->AddVar("shower_end",         'I');
+        pt->AddVar("shower_layer",       'D');
         pt->AddVar("shower_layer_ratio", 'D');
         pt->AddVar("shower_length",      'D');
         pt->AddVar("shower_radius",      'D');
@@ -57,16 +58,13 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("ywidth",             'D');
         pt->AddVar("zwidth",             'D');
 
-        pt->AddTrainSig("/lustre/collider/chenjiyuan/hbuana/build/train/pid_train_pion.root",       "Calib_Hit", "pion");
-        pt->AddTestSig ("/lustre/collider/chenjiyuan/hbuana/build/train/pid_test_pion.root",        "Calib_Hit", "pion");
-        pt->AddTrainBkg("/lustre/collider/chenjiyuan/hbuana/build/train/pid_train_background.root", "Calib_Hit", "background");
-        pt->AddTestBkg ("/lustre/collider/chenjiyuan/hbuana/build/train/pid_test_background.root",  "Calib_Hit", "background");
+        pt->AddTrainSig("/lustre/collider/chenjiyuan/hbuana_data/build/run/pi-/train_pion.root", "Calib_Hit", "pion");
+        pt->AddTestSig ("/lustre/collider/chenjiyuan/hbuana_data/build/run/pi-/test_pion.root",  "Calib_Hit", "pion");
 
-        /*
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_pion.root",   tree, "pion");
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_muon.root",   tree, "muon");
-        pt->AddSignal("/lustre/collider/chenjiyuan/hbuana/build/train/pid_e.root",      tree, "e");
-        */
+        pt->AddTrainBkg("/lustre/collider/chenjiyuan/hbuana_data/build/run/mu-/train_muon.root", "Calib_Hit", "muon");
+        pt->AddTrainBkg("/lustre/collider/chenjiyuan/hbuana_data/build/run/e-/train_e.root",     "Calib_Hit", "e");
+        pt->AddTestBkg ("/lustre/collider/chenjiyuan/hbuana_data/build/run/mu-/test_muon.root",  "Calib_Hit", "muon");
+        pt->AddTestBkg ("/lustre/collider/chenjiyuan/hbuana_data/build/run/e-/test_e.root",      "Calib_Hit", "e");
 
         pt->TrainBDT();
 	}
