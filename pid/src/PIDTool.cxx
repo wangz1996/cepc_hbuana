@@ -8,9 +8,9 @@ Int_t NHScaleV2(RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<D
     Int_t tmpK = 0;
     Double_t tmpEn = 0;
     Int_t NewCellID0 = 0;
-    const Double_t bias = -342.55;
-    const Double_t width = 40.3;
-    const Double_t thick = 30;
+    const Double_t Bias = -342.55;
+    const Double_t Width = 40.3;
+    const Double_t Thick = 30;
     const Int_t NumHit = pos_x.size();
 
     std::map<Double_t, Double_t> testIDtoEnergy;
@@ -21,9 +21,9 @@ Int_t NHScaleV2(RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<D
         Double_t y = pos_y.at(i);
         Double_t z = pos_z.at(i);
 
-        tmpI = (Int_t ((x - bias) / width) + Int_t(TMath::Abs(x) / x)) / RatioX;
-        tmpJ = (Int_t ((y - bias) / width) + Int_t(TMath::Abs(y) / y)) / RatioY;
-        tmpK = (Int_t)(z / thick) / RatioZ;
+        tmpI = (Int_t ((x - Bias) / Width) + Int_t(TMath::Abs(x) / x)) / RatioX;
+        tmpJ = (Int_t ((y - Bias) / Width) + Int_t(TMath::Abs(y) / y)) / RatioY;
+        tmpK = (Int_t)(z / Thick) / RatioZ;
         tmpEn = 1;
 
         NewCellID0 = (tmpK << 24) + (tmpJ << 12) + tmpI;
@@ -57,7 +57,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     outname = outname.substr(outname.find_last_of('/') + 1);
     outname = "pid_" + outname;
     auto fout = dm->Define("nhits", "(Int_t) Hit_X.size()")
-    .Define("theta", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, Int_t nhits)
+    .Define("Hit_Theta", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, Int_t nhits)
     {
         vector<Double_t> theta = {};
         for (Int_t i = 0; i < nhits; i++)
@@ -73,7 +73,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         }
         return theta;
     }, {"Hit_X", "Hit_Y", "Hit_Z", "nhits"})
-    .Define("phi", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, Int_t nhits)
+    .Define("Hit_Phi", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, Int_t nhits)
     {
         vector<Double_t> phi = {};
         for (Int_t i = 0; i < nhits; i++)
@@ -95,9 +95,9 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     }, {"Hit_X", "Hit_Y", "nhits"})
     .Define("layer", [] (vector<Double_t> Hit_Z, Int_t nhits)
     {
-        vector<Int_t> layer(nhits);
+        vector<Int_t> layer = {};
         for (Int_t i = 0; i < nhits; i++)
-            layer.emplace_back((Int_t) Hit_Z.at(i) / thick);
+            layer.emplace_back((Int_t) round(Hit_Z.at(i) / thick));
         return layer;
     }, {"Hit_Z", "nhits"})
     .Define("xwidth", [] (vector<Double_t> Hit_X)
@@ -172,7 +172,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     .Define("shower_start", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms)
     {
         Int_t shower_start = nlayer + 2;
-        for (Int_t i = 0; i < layer_hitcell.size() - 3; i++)
+        for (Int_t i = 0; i < nlayer - 3; i++)
         {
             if (layer_hitcell.at(i) >= 4 && layer_rms.at(i) < 50.0 && layer_hitcell.at(i + 1) >= 4 && layer_hitcell.at(i + 2) >= 4 && layer_hitcell.at(i + 3) >= 4)
             {
@@ -201,7 +201,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     }, {"layer_hitcell", "layer_rms", "shower_start"})
     .Define("shower_radius", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, Int_t beginning, Int_t ending, Int_t nhits)
     {
-        LongDouble_t d2 = 0;
+        Double_t d2 = 0;
         Int_t hits = 0;
         for (Int_t i = 0; i < nhits; i++)
         {
@@ -315,13 +315,13 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         shower_density /= nhits;
         return shower_density;
     }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy", "nhits"})
-    .Define("clusterE1E9", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, Int_t nhits)
+    .Define("E1E9", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, Int_t nhits)
     {
         if (nhits == 0)
             return 0.0;
         const Double_t bias = 342.55;
         const Double_t width = 40.3;
-        Double_t clusterE1E9 = 0.0;
+        Double_t E1E9 = 0.0;
         unordered_map<Int_t, Double_t> map_cellid;
         for (Int_t i = 0; i < nhits; i++)
         {
@@ -353,10 +353,55 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
                     tempE9 += map_cellid[tmp];
                 }
             }
-            clusterE1E9 += tempE1 / tempE9;
+            E1E9 += tempE1 / tempE9;
         }
-        clusterE1E9 /= nhits;
-        return clusterE1E9;
+        E1E9 /= nhits;
+        return E1E9;
+    }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy", "nhits"})
+    .Define("E9E25", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, Int_t nhits)
+    {
+        if (nhits == 0)
+            return 0.0;
+        const Double_t bias = 342.55;
+        const Double_t width = 40.3;
+        Double_t E9E25 = 0.0;
+        unordered_map<Int_t, Double_t> map_cellid;
+        for (Int_t i = 0; i < nhits; i++)
+        {
+            Int_t x = round((Hit_X.at(i) + bias) / width);
+            Int_t y = round((Hit_Y.at(i) + bias) / width);
+            Int_t z = layer.at(i);
+            Int_t index = z * 100000 + x * 100 + y;
+            map_cellid[index] += Digi_Hit_Energy.at(i);
+        }
+        for (Int_t j = 0; j < nhits; j++)
+        {
+            if (Digi_Hit_Energy.at(j) == 0.0)
+                continue;
+            Int_t x = round((Hit_X.at(j) + bias) / width);
+            Int_t y = round((Hit_Y.at(j) + bias) / width);
+            Int_t z = layer.at(j);
+            Int_t index = z * 100000 + x * 100 + y;
+            Double_t tempE9 = map_cellid[index];
+            Double_t tempE25 = map_cellid[index];
+            for (Int_t ix = x - 2; ix <= x + 2; ix++)
+            {
+                if (ix < 0 || ix > 17)
+                    continue;
+                for (Int_t iy = y - 2; iy <= y + 2; iy++)
+                {
+                    if (iy < 0 || iy > 17)
+                        continue;
+                    Int_t tmp = z * 100000 + ix * 100 + iy;
+                    if (ix >= x - 1 && ix <= x + 1 && iy >= y - 1 && iy <= y + 1)
+                        tempE9 += map_cellid[tmp];
+                    tempE25 += map_cellid[tmp];
+                }
+            }
+            E9E25 += tempE9 / tempE25;
+        }
+        E9E25 /= nhits;
+        return E9E25;
     }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy", "nhits"})
     .Define("shower_length", [] (vector<Double_t> layer_rms, Int_t shower_start)
     {
@@ -382,13 +427,13 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     .Define("FD_2D", [] (RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z, Int_t nhits)
     {
         Double_t fd_2d = 0;
-        vector<Int_t> scale = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30 };
+        vector<Int_t> scale = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100 };
         const Int_t num = scale.size();
         vector<Int_t> NResizeHit(num);
         for (Int_t i = 0; i < num; i++)
         {
             NResizeHit.at(i) = NHScaleV2(pos_x, pos_y, pos_z, scale.at(i), scale.at(i), 1);
-            fd_2d += 0.1 * TMath::Log((Double_t) nhits / NResizeHit.at(i)) / TMath::Log((Double_t) scale.at(i));
+            fd_2d += TMath::Log((Double_t) nhits / NResizeHit.at(i)) / TMath::Log((Double_t) scale.at(i)) / num;
         }
         if (pos_x.size() == 0)
             fd_2d = -1;
@@ -397,13 +442,13 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
     .Define("FD_3D", [] (RVec<Double_t> const& pos_x, RVec<Double_t> const& pos_y, RVec<Double_t> const& pos_z, Int_t nhits)
     {
         Double_t fd_3d = 0;
-        vector<Int_t> scale = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30 };
+        vector<Int_t> scale = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100 };
         const Int_t num = scale.size();
         vector<Int_t> NResizeHit(num);
         for (Int_t i = 0; i < num; i++)
         {
             NResizeHit.at(i) = NHScaleV2(pos_x, pos_y, pos_z, scale.at(i), scale.at(i), scale.at(i));
-            fd_3d += 0.1 * TMath::Log((Double_t) nhits / NResizeHit.at(i)) / TMath::Log((Double_t) scale.at(i));
+            fd_3d += TMath::Log((Double_t) nhits / NResizeHit.at(i)) / TMath::Log((Double_t) scale.at(i)) / num;
         }
         if (pos_x.size() == 0)
             fd_3d = -1;
@@ -473,27 +518,25 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         delete httool;
         return ntrack;
     }, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
-    // Below are time analyses (relevant data not stored)
-    /*
-    .Define("time_mean_hit", [] (vector<Double_t> hit_time, Int_t nhits)
+    .Define("hit_time_mean", [] (vector<Double_t> hit_time, Int_t nhits)
     {
         Double_t tot = 0;
         for (Double_t& i : hit_time)
             tot += i;
         return tot / nhits;
     }, {"Hit_Time", "nhits"})
-    .Define("time_rms_hit", [] (vector<Double_t> hit_time, Int_t nhits)
+    .Define("hit_time_rms", [] (vector<Double_t> hit_time, Int_t nhits)
     {
         Double_t tot2 = 0;
         for (Double_t& i : hit_time)
             tot2 += i * i;
         return TMath::Sqrt(tot2 / nhits);
     }, {"Hit_Time", "nhits"})
-    .Define("time_mean_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending, Int_t nhits)
+    .Define("shower_time_mean", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending, Int_t nhits)
     {
         Double_t tot = 0;
         Int_t hits = 0;
-        for (Int_t i = 0; i < n; i++)
+        for (Int_t i = 0; i < nhits; i++)
         {
             if (layer.at(i) >= beginning && layer.at(i) < ending)
             {
@@ -506,11 +549,11 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         else
             return tot / nhits;
     }, {"Hit_Time", "layer", "shower_start", "shower_end", "nhits"})
-    .Define("time_rms_shower", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending, Int_t nhits)
+    .Define("shower_time_rms", [] (vector<Double_t> hit_time, vector<Int_t> layer, Int_t beginning, Int_t ending, Int_t nhits)
     {
         Double_t tot2 = 0;
         Int_t hits = 0;
-        for (Int_t i = 0; i < n; i++)
+        for (Int_t i = 0; i < nhits; i++)
         {
             if (layer.at(i) >= beginning && layer.at(i) < ending)
             {
@@ -523,7 +566,6 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         else
             return tot2 / nhits;
     }, {"Hit_Time", "layer", "shower_start", "shower_end", "nhits"})
-    */
     //.Range(1)
     .Snapshot(tree, outname);
     delete dm;
@@ -637,11 +679,12 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
     Float_t bdt_COG_X;
     Float_t bdt_COG_Y;
     Float_t bdt_COG_Z;
+    Float_t bdt_E1E9;
+    Float_t bdt_E9E25;
     Float_t bdt_Edep;
     Float_t bdt_Emean;
     Float_t bdt_FD_2D;
     Float_t bdt_FD_3D;
-    Float_t bdt_clusterE1E9;
     Float_t bdt_hit_layer;
     Float_t bdt_nhits;
     Float_t	bdt_ntrack;
@@ -656,14 +699,15 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
     Float_t bdt_ywidth;
     Float_t bdt_zwidth;
 
-    reader->AddVariable("Edep",               &bdt_Edep);
     reader->AddVariable("COG_X",              &bdt_COG_X);
     reader->AddVariable("COG_Y",              &bdt_COG_Y);
     reader->AddVariable("COG_Z",              &bdt_COG_Z);
+    reader->AddVariable("E1E9",               &bdt_E1E9);
+    reader->AddVariable("E9E25",              &bdt_E9E25);
+    reader->AddVariable("Edep",               &bdt_Edep);
     reader->AddVariable("Emean",              &bdt_Emean);
     reader->AddVariable("FD_2D",              &bdt_FD_2D);
     reader->AddVariable("FD_3D",              &bdt_FD_3D);
-    reader->AddVariable("clusterE1E9",        &bdt_clusterE1E9);
     reader->AddVariable("hit_layer",          &bdt_hit_layer);
     reader->AddVariable("nhits",              &bdt_nhits);
     reader->AddVariable("ntrack",             &bdt_ntrack);
@@ -680,20 +724,21 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 
     reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
     cout << "Booked" << endl;
-    vector<string> rdf_input = { "COG_X", "COG_Y", "COG_Z", "Edep", "Emean", "FD_2D", "FD_3D", "clusterE1E9", "hit_layer", "nhits", "ntrack", "shower_density", "shower_end", "shower_layer", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "xwidth", "ywidth", "zwidth"};
+    vector<string> rdf_input = { "COG_X", "COG_Y", "COG_Z", "E1E9", "E9E25", "Edep", "Emean", "FD_2D", "FD_3D", "hit_layer", "nhits", "ntrack", "shower_density", "shower_end", "shower_layer", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "xwidth", "ywidth", "zwidth"};
 
     ROOT::RDataFrame df(tname, fname);
 
-    auto bdtout = df.Define("BDT_pi", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    auto bdtout = df.Define("BDT_pi", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
         bdt_COG_X              = cogx;
         bdt_COG_Y              = cogy;
         bdt_COG_Z              = cogz;
+        bdt_E1E9               = e1e9;
+        bdt_E9E25              = e9e25;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd2;
         bdt_FD_3D              = fd3;
-        bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
         bdt_ntrack             = n;
@@ -710,16 +755,17 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[1];
     }, rdf_input)
-    .Define("BDT_mu", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("BDT_mu", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
         bdt_COG_X              = cogx;
         bdt_COG_Y              = cogy;
         bdt_COG_Z              = cogz;
+        bdt_E1E9               = e1e9;
+        bdt_E9E25              = e9e25;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd2;
         bdt_FD_3D              = fd3;
-        bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
         bdt_ntrack             = n;
@@ -736,16 +782,17 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[2];
     }, rdf_input)
-    .Define("BDT_e", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("BDT_e", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
         bdt_COG_X              = cogx;
         bdt_COG_Y              = cogy;
         bdt_COG_Z              = cogz;
+        bdt_E1E9               = e1e9;
+        bdt_E9E25              = e9e25;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd2;
         bdt_FD_3D              = fd3;
-        bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
         bdt_ntrack             = n;
@@ -763,16 +810,17 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[3];
     }, rdf_input)
     /*
-    .Define("bdt_proton", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t cl, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("bdt_proton", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Int_t s, Double_t x, Double_t y, Double_t z)
     {
         bdt_COG_X              = cogx;
         bdt_COG_Y              = cogy;
         bdt_COG_Z              = cogz;
+        bdt_E1E9               = e1e9;
+        bdt_E9E25              = e9e25;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd2;
         bdt_FD_3D              = fd3;
-        bdt_clusterE1E9        = cl;
         bdt_hit_layer          = hl;
         bdt_nhits              = nh;
         bdt_ntrack             = n;
