@@ -47,6 +47,8 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("FD_2D",              'D');
         pt->AddVar("FD_3D",              'D');
         pt->AddVar("hit_layer",          'D');
+        pt->AddVar("hit_time_mean",      'D');
+        pt->AddVar("hit_time_rms",       'D');
         pt->AddVar("nhits",              'I');
         pt->AddVar("ntrack",             'D');
         pt->AddVar("shower_density",     'D');
@@ -56,6 +58,8 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("shower_length",      'D');
         pt->AddVar("shower_radius",      'D');
         pt->AddVar("shower_start",       'I');
+        pt->AddVar("shower_time_mean",   'D');
+        pt->AddVar("shower_time_rms",    'D');
         pt->AddVar("xwidth",             'D');
         pt->AddVar("ywidth",             'D');
         pt->AddVar("zwidth",             'D');
