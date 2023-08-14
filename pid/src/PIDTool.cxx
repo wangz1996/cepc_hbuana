@@ -107,6 +107,13 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             hits_on_layer.at(i) += 1;
         return hits_on_layer;
     }, {"layer"})
+    .Define("layer_energy", [] (vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, Int_t nhits)
+    {
+        vector<Double_t> layer_energy(nlayer);
+        for (Int_t i = 0; i < nhits; i++)
+            layer_energy.at(layer.at(i)) += Digi_Hit_Energy.at(i);
+        return layer_energy;
+    }, {"layer", "Digi_Hit_Energy", "nhits"})
     .Define("xwidth", [] (vector<Double_t> Hit_X)
     {
         TH1D* h1 = new TH1D("h1", "", 100, -400, 400);
@@ -410,6 +417,51 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         E9E25 /= nhits;
         return E9E25;
     }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy", "nhits"})
+    .Define("E9E49", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, Int_t nhits)
+    {
+        if (nhits == 0)
+            return 0.0;
+        const Double_t bias = 342.55;
+        const Double_t width = 40.3;
+        Double_t E9E49 = 0.0;
+        unordered_map<Int_t, Double_t> map_cellid;
+        for (Int_t i = 0; i < nhits; i++)
+        {
+            Int_t x = round((Hit_X.at(i) + bias) / width);
+            Int_t y = round((Hit_Y.at(i) + bias) / width);
+            Int_t z = layer.at(i);
+            Int_t index = z * 100000 + x * 100 + y;
+            map_cellid[index] += Digi_Hit_Energy.at(i);
+        }
+        for (Int_t j = 0; j < nhits; j++)
+        {
+            if (Digi_Hit_Energy.at(j) == 0.0)
+                continue;
+            Int_t x = round((Hit_X.at(j) + bias) / width);
+            Int_t y = round((Hit_Y.at(j) + bias) / width);
+            Int_t z = layer.at(j);
+            Int_t index = z * 100000 + x * 100 + y;
+            Double_t tempE9 = map_cellid[index];
+            Double_t tempE49 = map_cellid[index];
+            for (Int_t ix = x - 3; ix <= x + 3; ix++)
+            {
+                if (ix < 0 || ix > 17)
+                    continue;
+                for (Int_t iy = y - 3; iy <= y + 3; iy++)
+                {
+                    if (iy < 0 || iy > 17)
+                        continue;
+                    Int_t tmp = z * 100000 + ix * 100 + iy;
+                    if (ix >= x - 1 && ix <= x + 1 && iy >= y - 1 && iy <= y + 1)
+                        tempE9 += map_cellid[tmp];
+                    tempE49 += map_cellid[tmp];
+                }
+            }
+            E9E49 += tempE9 / tempE49;
+        }
+        E9E49 /= nhits;
+        return E9E49;
+    }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy", "nhits"})
     .Define("shower_length", [] (vector<Double_t> layer_rms, Int_t shower_start)
     {
         Double_t shower_length = 0.0;
@@ -461,29 +513,123 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             fd_3d = -1;
         return fd_3d;
     }, {"Hit_X", "Hit_Y", "Hit_Z", "nhits"})
-    .Define("COG_X", [] (vector<Double_t> Hit_X, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
+    .Define("COG_X", [] (vector<Double_t> Hit_X, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, vector<Double_t> layer_energy, Int_t nhits)
     {
-        Double_t cog_x = 0;
+        vector<Double_t> cog_x(nlayer);
         for (Int_t i = 0; i < nhits; i++)
-            cog_x += Hit_X.at(i) * Digi_Hit_Energy.at(i);
-        cog_x /= Edep;
+            cog_x.at(layer.at(i)) += Hit_X.at(i) * Digi_Hit_Energy.at(i);
+        for (Int_t j = 0; j < cog_x.size(); j++)
+        {
+            if (cog_x.at(j) == 0)
+                continue;
+            else
+                cog_x.at(j) /= layer_energy.at(j);
+        }
         return cog_x;
-    }, {"Hit_X", "Digi_Hit_Energy", "Edep", "nhits"})
-    .Define("COG_Y", [] (vector<Double_t> Hit_Y, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
+    }, {"Hit_X", "layer", "Digi_Hit_Energy", "layer_energy", "nhits"})
+    .Define("COG_Y", [] (vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, vector<Double_t> layer_energy, Int_t nhits)
     {
-        Double_t cog_y = 0;
+        vector<Double_t> cog_y(nlayer);
         for (Int_t i = 0; i < nhits; i++)
-            cog_y += Hit_Y.at(i) * Digi_Hit_Energy.at(i);
-        cog_y /= Edep;
+            cog_y.at(layer.at(i)) += Hit_Y.at(i) * Digi_Hit_Energy.at(i);
+        for (Int_t j = 0; j < cog_y.size(); j++)
+        {
+            if (cog_y.at(j) == 0)
+                continue;
+            else
+                cog_y.at(j) /= layer_energy.at(j);
+        }
         return cog_y;
-    }, {"Hit_Y", "Digi_Hit_Energy", "Edep", "nhits"})
-    .Define("COG_Z", [] (vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
+    }, {"Hit_Y", "layer", "Digi_Hit_Energy", "layer_energy", "nhits"})
+    .Define("COG_X_4", [] (vector<Double_t> Hit_X, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, vector<Double_t> layer_energy, Int_t nhits)
     {
-        Double_t cog_z = 0;
+        vector<Double_t> cog_x_4(nlayer / 4);
+        vector<Double_t> energy_4layer(nlayer / 4);
         for (Int_t i = 0; i < nhits; i++)
-            cog_z += Hit_Z.at(i) * Digi_Hit_Energy.at(i);
-        cog_z /= Edep;
-        return cog_z;
+            cog_x_4.at(layer.at(i) / 4) += Hit_X.at(i) * Digi_Hit_Energy.at(i);
+        for (Int_t j = 0; j < nlayer; j++)
+            energy_4layer.at(j / 4) += layer_energy.at(j);
+        for (Int_t k = 0; k < nlayer / 4; k++)
+        {
+            if (cog_x_4.at(k) == 0)
+                continue;
+            else
+                cog_x_4.at(k) /= energy_4layer.at(k);
+        }
+        return cog_x_4;
+    }, {"Hit_X", "layer", "Digi_Hit_Energy", "layer_energy", "nhits"})
+    .Define("COG_Y_4", [] (vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, vector<Double_t> layer_energy, Int_t nhits)
+    {
+        vector<Double_t> cog_y_4(nlayer / 4);
+        vector<Double_t> energy_4layer(nlayer / 4);
+        for (Int_t i = 0; i < nhits; i++)
+            cog_y_4.at(layer.at(i) / 4) += Hit_Y.at(i) * Digi_Hit_Energy.at(i);
+        for (Int_t j = 0; j < nlayer; j++)
+            energy_4layer.at(j / 4) += layer_energy.at(j);
+        for (Int_t k = 0; k < nlayer / 4; k++)
+        {
+            if (cog_y_4.at(k) == 0)
+                continue;
+            else
+                cog_y_4.at(k) /= energy_4layer.at(k);
+        }
+        return cog_y_4;
+    }, {"Hit_Y", "layer", "Digi_Hit_Energy", "layer_energy", "nhits"})
+    .Define("COG_Z_4", [] (vector<Double_t> Hit_Z, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy, vector<Double_t> layer_energy, Int_t nhits)
+    {
+        vector<Double_t> cog_z_4(nlayer / 4);
+        vector<Double_t> energy_4layer(nlayer / 4);
+        for (Int_t i = 0; i < nhits; i++)
+            cog_z_4.at(layer.at(i) / 4) += Hit_Z.at(i) * Digi_Hit_Energy.at(i);
+        for (Int_t j = 0; j < nlayer; j++)
+            energy_4layer.at(j / 4) += layer_energy.at(j);
+        for (Int_t k = 0; k < nlayer / 4; k++)
+        {
+            if (cog_z_4.at(k) == 0)
+                continue;
+            else
+                cog_z_4.at(k) /= energy_4layer.at(k);
+        }
+        return cog_z_4;
+    }, {"Hit_Z", "layer", "Digi_Hit_Energy", "layer_energy", "nhits"})
+    .Define("COG_X_overall", [] (vector<Double_t> Hit_X, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
+    {
+        Double_t cog_x_overall = 0;
+        if (Edep == 0)
+            return cog_x_overall;
+        else
+        {
+            for (Int_t i = 0; i < nhits; i++)
+                cog_x_overall += Hit_X.at(i) * Digi_Hit_Energy.at(i);
+            cog_x_overall /= Edep;
+            return cog_x_overall;
+        }
+    }, {"Hit_X", "Digi_Hit_Energy", "Edep", "nhits"})
+    .Define("COG_Y_overall", [] (vector<Double_t> Hit_Y, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
+    {
+        Double_t cog_y_overall = 0;
+        if (Edep == 0)
+            return cog_y_overall;
+        else
+        {
+            for (Int_t i = 0; i < nhits; i++)
+                cog_y_overall += Hit_Y.at(i) * Digi_Hit_Energy.at(i);
+            cog_y_overall /= Edep;
+            return cog_y_overall;
+        }
+    }, {"Hit_Y", "Digi_Hit_Energy", "Edep", "nhits"})
+    .Define("COG_Z_overall", [] (vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy, Double_t Edep, Int_t nhits)
+    {
+        Double_t cog_z_overall = 0;
+        if (Edep == 0)
+            return cog_z_overall;
+        else
+        {
+            for (Int_t i = 0; i < nhits; i++)
+                cog_z_overall += Hit_Z.at(i) * Digi_Hit_Energy.at(i);
+            cog_z_overall /= Edep;
+            return cog_z_overall;
+        }
     }, {"Hit_Z", "Digi_Hit_Energy", "Edep", "nhits"})
     .Define("hclx", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
     {
@@ -683,11 +829,12 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
     Use["BDTG"] = 1;
     std::cout << "==> Start TMVAMulticlassApplication" << std::endl;
     TMVA::Reader* reader = new TMVA::Reader( "!Color:!Silent" );
-    Float_t bdt_COG_X;
-    Float_t bdt_COG_Y;
-    Float_t bdt_COG_Z;
+    Float_t bdt_COG_X_overall;
+    Float_t bdt_COG_Y_overall;
+    Float_t bdt_COG_Z_overall;
     Float_t bdt_E1E9;
     Float_t bdt_E9E25;
+    Float_t bdt_E9E49;
     Float_t bdt_Edep;
     Float_t bdt_Emean;
     Float_t bdt_FD_2D;
@@ -710,11 +857,12 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
     Float_t bdt_ywidth;
     Float_t bdt_zwidth;
 
-    reader->AddVariable("COG_X",              &bdt_COG_X);
-    reader->AddVariable("COG_Y",              &bdt_COG_Y);
-    reader->AddVariable("COG_Z",              &bdt_COG_Z);
+    reader->AddVariable("COG_X_overall",      &bdt_COG_X_overall);
+    reader->AddVariable("COG_Y_overall",      &bdt_COG_Y_overall);
+    reader->AddVariable("COG_Z_overall",      &bdt_COG_Z_overall);
     reader->AddVariable("E1E9",               &bdt_E1E9);
     reader->AddVariable("E9E25",              &bdt_E9E25);
+    reader->AddVariable("E9E49",              &bdt_E9E49);
     reader->AddVariable("Edep",               &bdt_Edep);
     reader->AddVariable("Emean",              &bdt_Emean);
     reader->AddVariable("FD_2D",              &bdt_FD_2D);
@@ -739,17 +887,18 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 
     reader->BookMVA("BDTG method", TString("dataset/weights/TMVAMulticlass_BDTG.weights.xml"));
     cout << "Booked" << endl;
-    vector<string> rdf_input = { "COG_X", "COG_Y", "COG_Z", "E1E9", "E9E25", "Edep", "Emean", "FD_2D", "FD_3D", "hit_layer", "hit_time_mean", "hit_time_rms", "nhits", "ntrack", "shower_density", "shower_end", "shower_layer", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "shower_time_mean", "shower_time_rms", "xwidth", "ywidth", "zwidth"};
+    vector<string> rdf_input = { "COG_X_overall", "COG_Y_overall", "COG_Z_overall", "E1E9", "E9E25", "E9E49", "Edep", "Emean", "FD_2D", "FD_3D", "hit_layer", "hit_time_mean", "hit_time_rms", "nhits", "ntrack", "shower_density", "shower_end", "shower_layer", "shower_layer_ratio", "shower_length", "shower_radius", "shower_start", "shower_time_mean", "shower_time_rms", "xwidth", "ywidth", "zwidth"};
 
     ROOT::RDataFrame df(tname, fname);
 
-    auto bdtout = df.Define("BDT_pi", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Double_t htm, Double_t htr, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Double_t stm, Double_t str, Int_t s, Double_t x, Double_t y, Double_t z)
+    auto bdtout = df.Define("BDT_pi", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e9e49, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Double_t htm, Double_t htr, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Double_t stm, Double_t str, Int_t s, Double_t x, Double_t y, Double_t z)
     {
-        bdt_COG_X              = cogx;
-        bdt_COG_Y              = cogy;
-        bdt_COG_Z              = cogz;
+        bdt_COG_X_overall      = cogx;
+        bdt_COG_Y_overall      = cogy;
+        bdt_COG_Z_overall      = cogz;
         bdt_E1E9               = e1e9;
         bdt_E9E25              = e9e25;
+        bdt_E9E49              = e9e49;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd2;
@@ -774,13 +923,14 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         return (reader->EvaluateMulticlass( "BDTG method" ))[0];
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[1];
     }, rdf_input)
-    .Define("BDT_mu", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Double_t htm, Double_t htr, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Double_t stm, Double_t str, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("BDT_mu", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e9e49, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Double_t htm, Double_t htr, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Double_t stm, Double_t str, Int_t s, Double_t x, Double_t y, Double_t z)
     {
-        bdt_COG_X              = cogx;
-        bdt_COG_Y              = cogy;
-        bdt_COG_Z              = cogz;
+        bdt_COG_X_overall      = cogx;
+        bdt_COG_Y_overall      = cogy;
+        bdt_COG_Z_overall      = cogz;
         bdt_E1E9               = e1e9;
         bdt_E9E25              = e9e25;
+        bdt_E9E49              = e9e49;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd2;
@@ -805,13 +955,14 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
         return (reader->EvaluateMulticlass( "BDTG method" ))[1];
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[2];
     }, rdf_input)
-    .Define("BDT_e", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Double_t htm, Double_t htr, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Double_t stm, Double_t str, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("BDT_e", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e9e49, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Double_t htm, Double_t htr, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Double_t stm, Double_t str, Int_t s, Double_t x, Double_t y, Double_t z)
     {
-        bdt_COG_X              = cogx;
-        bdt_COG_Y              = cogy;
-        bdt_COG_Z              = cogz;
+        bdt_COG_X_overall      = cogx;
+        bdt_COG_Y_overall      = cogy;
+        bdt_COG_Z_overall      = cogz;
         bdt_E1E9               = e1e9;
         bdt_E9E25              = e9e25;
+        bdt_E9E49              = e9e49;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd2;
@@ -837,13 +988,14 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 //        return (reader->EvaluateMulticlass( "BDTG method" ))[3];
     }, rdf_input)
     /*
-    .Define("bdt_proton", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Double_t htm, Double_t htr, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Double_t stm, Double_t str, Int_t s, Double_t x, Double_t y, Double_t z)
+    .Define("bdt_proton", [&](Double_t cogx, Double_t cogy, Double_t cogz, Double_t e1e9, Double_t e9e25, Double_t e9e49, Double_t e, Double_t em, Double_t fd2, Double_t fd3, Double_t hl, Double_t htm, Double_t htr, Int_t nh, Int_t n, Double_t d, Int_t se, Double_t layer, Double_t lr, Double_t l, Double_t r, Double_t stm, Double_t str, Int_t s, Double_t x, Double_t y, Double_t z)
     {
-        bdt_COG_X              = cogx;
-        bdt_COG_Y              = cogy;
-        bdt_COG_Z              = cogz;
+        bdt_COG_X_overall      = cogx;
+        bdt_COG_Y_overall      = cogy;
+        bdt_COG_Z_overall      = cogz;
         bdt_E1E9               = e1e9;
         bdt_E9E25              = e9e25;
+        bdt_E9E49              = e9e49;
         bdt_Edep               = e;
         bdt_Emean              = em;
         bdt_FD_2D              = fd2;

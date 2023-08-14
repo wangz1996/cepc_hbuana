@@ -6,6 +6,7 @@ Int_t main(Int_t argc, char* argv[])
 {
     string file = "", tree = "";
     string fntuple = "", tntuple = "";
+    string help = "";
     Int_t train = 0, bdtntuple = 0;
 
     for (Int_t i = 1; i < argc; i++)
@@ -25,23 +26,35 @@ Int_t main(Int_t argc, char* argv[])
             fntuple = string(argv[i + 1]);
             tntuple = string(argv[i + 2]);
         }
-    }
 
-    cout << "File: " << file << endl;
-    cout << "Tree: " << tree << endl;
+        else if (string(argv[i]) == string("-h") || string(argv[i]) == string("-help"))
+        {
+            cout << "Reconstruct variables: PIDTool -f (file name) -t (tree name)" << endl;
+            cout << "PID with BDT:          PIDTool -train" << endl;
+            cout << "Classification:        PIDtool -tag (file name) (tree name)" << endl;
+        }
+    }
 
     PIDTool* pt = new PIDTool();
 
     if (file != "" && tree != "")
+    {
+        cout << "File: " << file << endl;
+        cout << "Tree: " << tree << endl;
+
         pt->GenNtuple(file, tree);
+    }
 
     if (train == 1)
     {
-        pt->AddVar("COG_X",              'D');
-        pt->AddVar("COG_Y",              'D');
-        pt->AddVar("COG_Z",              'D');
+        cout << "Training and testing..." << endl;
+
+        pt->AddVar("COG_X_overall",      'D');
+        pt->AddVar("COG_Y_overall",      'D');
+        pt->AddVar("COG_Z_overall",      'D');
         pt->AddVar("E1E9",               'D');
         pt->AddVar("E9E25",              'D');
+        pt->AddVar("E9E49",              'D');
         pt->AddVar("Edep",               'D');
         pt->AddVar("Emean",              'D');
         pt->AddVar("FD_2D",              'D');
@@ -76,7 +89,10 @@ Int_t main(Int_t argc, char* argv[])
 	}
 
     if (bdtntuple == 1)
+    {
+        cout << "Classifying..." << endl;
         pt->BDTNtuple(fntuple, tntuple);
+    }
 
     delete pt;
     return 0;
