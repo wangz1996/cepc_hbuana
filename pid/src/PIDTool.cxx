@@ -91,30 +91,30 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         delete h1;
         return zwidth;
     }, {"Hit_Z"})
-    .Define("Edep", [] (vector<Double_t> Digi_Hit_Energy)
+    .Define("Edep", [] (vector<Double_t> Hit_Energy)
     {
         Double_t sum = 0.0;
-        for (Double_t i : Digi_Hit_Energy)
+        for (Double_t i : Hit_Energy)
             sum += i;
         return sum;
-    }, {"Digi_Hit_Energy"})
+    }, {"Hit_Energy"})
     .Define("Emean", [] (Double_t Edep, Int_t nhits)
     {
         return Edep / nhits;
     }, {"Edep", "nhits"})
-    .Define("layer_hitcell", [] (vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)
+    .Define("layer_hitcell", [] (vector<Int_t> layer, vector<Double_t> Hit_Energy)
     {
         vector<Int_t> layer_HitCell(nlayer);
         for (Int_t i = 0; i < layer.size(); i++)
         {
             Int_t ilayer = layer.at(i);
-            if (Digi_Hit_Energy.at(i) < 0.1)
+            if (Hit_Energy.at(i) < 0.1)
                 continue;
             layer_HitCell.at(ilayer)++;
         }
         return layer_HitCell;
-    }, {"layer", "Digi_Hit_Energy"})
-    .Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)->vector<Double_t>
+    }, {"layer", "Hit_Energy"})
+    .Define("layer_rms", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Hit_Energy)->vector<Double_t>
     {
         vector<Double_t> layer_rms(nlayer);
         vector<TH2D*> hvec;
@@ -123,7 +123,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         for (Int_t i = 0; i < Hit_X.size(); i++)
         {
             Int_t ilayer = layer.at(i);
-            hvec.at(ilayer)->Fill(Hit_X.at(i), Hit_Y.at(i), Digi_Hit_Energy.at(i));
+            hvec.at(ilayer)->Fill(Hit_X.at(i), Hit_Y.at(i), Hit_Energy.at(i));
         }
         for (Int_t i = 0; i < hvec.size(); i++)
         {
@@ -135,7 +135,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         }
         vector<TH2D*>().swap(hvec);
         return layer_rms;
-    }, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy"})
+    }, {"Hit_X", "Hit_Y", "layer", "Hit_Energy"})
     .Define("shower_start", [] (vector<Int_t> layer_hitcell, vector<Double_t> layer_rms)
     {
         Int_t shower_start = nlayer + 2;
@@ -246,7 +246,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         return hit_layer;
     }, {"layer"})
     .Define("shower_layer_ratio", "shower_layer / hit_layer")
-    .Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Digi_Hit_Energy)
+    .Define("shower_density", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Int_t> layer, vector<Double_t> Hit_Energy)
 	{
         const Double_t bias = 342.55;
         const Double_t width = 40.3;
@@ -262,7 +262,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
         }
 		for (Int_t i = 0; i < Hit_X.size(); i++)
 		{
-			if (Digi_Hit_Energy.at(i) < 0.1)
+			if (Hit_Energy.at(i) < 0.1)
                 continue;
 			Int_t x = (Hit_X.at(i) + bias) / width;
 			Int_t y = (Hit_Y.at(i) + bias) / width;
@@ -281,7 +281,7 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
 		}
 		shower_density /= Hit_X.size();
 		return shower_density;
-	}, {"Hit_X", "Hit_Y", "layer", "Digi_Hit_Energy"})
+	}, {"Hit_X", "Hit_Y", "layer", "Hit_Energy"})
 	.Define("shower_length", [] (vector<Double_t> layer_rms, Int_t shower_start)
 	{
 		Double_t shower_length = 0.0;
@@ -319,46 +319,46 @@ int PIDTool::GenNtuple(const string &file,const string &tree)
             fd = -1;
         return fd;
     }, {"Hit_X", "Hit_Y", "Hit_Z"})
-	.Define("hclx", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
+	.Define("hclx", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
 		vector<Double_t> hclx;
-		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
+		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		hclx = httool->GetHclX();
 		delete httool;
 		return hclx;
-	}, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
-	.Define("hcly", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
+	}, {"Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
+	.Define("hcly", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
 		vector<Double_t> hcly;
-		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
+		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		hcly = httool->GetHclY();
 		delete httool;
 		return hcly;
-	}, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
-	.Define("hclz", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
+	}, {"Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
+	.Define("hclz", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
 		vector<Double_t> hclz;
-		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
+		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		hclz = httool->GetHclZ();
 		delete httool;
 		return hclz;
-	}, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
-	.Define("hcle", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
+	}, {"Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
+	.Define("hcle", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
 		vector<Double_t> hcle;
-		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
+		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		hcle = httool->GetHclE();
 		delete httool;
 		return hcle;
-	}, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
-	.Define("ntrack", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Digi_Hit_Energy)
+	}, {"Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
+	.Define("ntrack", [] (vector<Double_t> Hit_X, vector<Double_t> Hit_Y, vector<Double_t> Hit_Z, vector<Double_t> Hit_Energy)
 	{
 		Int_t ntrack = 0;
-		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Digi_Hit_Energy);
+		HTTool* httool = new HTTool(Hit_X, Hit_Y, Hit_Z, Hit_Energy);
 		ntrack = httool->GetNtrack();
 		delete httool;
 		return ntrack;
-	}, {"Hit_X", "Hit_Y", "Hit_Z", "Digi_Hit_Energy"})
+	}, {"Hit_X", "Hit_Y", "Hit_Z", "Hit_Energy"})
 	//.Range(1)
     .Snapshot(tree, outname);
 	delete dm;
@@ -496,7 +496,7 @@ Int_t PIDTool::BDTNtuple(const string& fname, const string& tname)
 
     ROOT::RDataFrame df(tname, fname);
 
-    auto bdtout = df.Define("BDT_pi", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
+    auto bdtout = df.Define("BDT_e", [&](/*Double_t e, */ long long nh, Double_t d, Double_t lr, Double_t l, Double_t r, Double_t s)
     {
 //        bdt_E_dep              = e;
         bdt_Hits_no            = nh;

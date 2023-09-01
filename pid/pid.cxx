@@ -45,10 +45,10 @@ Int_t main(Int_t argc, char* argv[])
         pt->AddVar("Shower_radius",      'D');
         pt->AddVar("Shower_start",       'D');
 
-        pt->AddTrainSignal("/lustre/collider/chenjiyuan/hbuana/build/check/background_data/pion.root", "Calib_Hit", "pion");
-        pt->AddTrainBkg("/lustre/collider/chenjiyuan/hbuana/build/check/background_data/background.root", "Calib_Hit", "bkg");
-        pt->AddTestSignal("/lustre/collider/chenjiyuan/hbuana/build/check/background_data/test_pion.root", "Calib_Hit", "pion");
-        pt->AddTestBkg("/lustre/collider/chenjiyuan/hbuana/build/check/background_data/test_background.root", "Calib_Hit", "bkg");
+        pt->AddTrainSignal("/lustre/collider/chenjiyuan/hbuana/build/e_signal/mc/e.root",               "Calib_Hit", "e");
+        pt->AddTrainBkg   ("/lustre/collider/chenjiyuan/hbuana/build/e_signal/mc/background.root",      "Calib_Hit", "bkg");
+        pt->AddTestSignal ("/lustre/collider/chenjiyuan/hbuana/build/e_signal/mc/test_e.root",          "Calib_Hit", "e");
+        pt->AddTestBkg    ("/lustre/collider/chenjiyuan/hbuana/build/e_signal/mc/test_background.root", "Calib_Hit", "bkg");
 
         pt->TrainBDT();
 	}
